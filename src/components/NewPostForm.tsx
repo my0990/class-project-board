@@ -158,8 +158,12 @@ export default function NewPostForm({
       setDone(true);
       router.refresh();
       onSaved?.();
-    } catch {
-      setError("등록 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+    } catch (err) {
+      // 실제 원인(예: 지원하지 않는 파일 형식, R2 업로드 실패 등)을 그대로 보여줘서
+      // 문제를 더 쉽게 진단할 수 있게 합니다.
+      const message = err instanceof Error && err.message ? err.message : "등록 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+      setError(message);
+      console.error("게시글 등록/수정 실패:", err);
     } finally {
       setSubmitting(false);
     }
