@@ -6,7 +6,7 @@ datasource db {
   // 배포용 기본값은 Postgres입니다.
   // 로컬에서 무료 DB 없이 더미로만 테스트하려면 provider를 "sqlite"로 바꾸고
   // DATABASE_URL="file:./dev.db" 로 설정하세요.
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
