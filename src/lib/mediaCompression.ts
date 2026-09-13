@@ -67,13 +67,18 @@ export async function compressVideo(file: File, onProgress?: (ratio: number) => 
       outputName,
     ]);
 
-    const data = await ffmpeg.readFile(outputName);
+    const raw = await ffmpeg.readFile(outputName);
     ffmpeg.off("progress", handleProgress);
 
     await ffmpeg.deleteFile(inputName).catch(() => {});
     await ffmpeg.deleteFile(outputName).catch(() => {});
 
-    const compressedBlob = new Blob([data], { type: "video/mp4" });
+    // ffmpeg.wasm의 readFile은 Uint8Array | string을 반환하고, 그 Uint8Array는
+    // TypeScript가 SharedArrayBuffer 기반일 수도 있다고 보아 Blob 생성자 타입과
+    // 맞지 않는다고 판단하는 경우가 있어, 일반 ArrayBuffer 기반 Uint8Array로
+    // 새로 만들어서 넘겨줍니다.
+    const bytes = typeof raw === "string" ? new TextEncoder().encode(raw) : new Uint8Array(raw);
+    const compressedBlob = new Blob([bytes], { type: "video/mp4" });
 
     // 압축 결과가 오히려 더 크면(이미 고효율로 인코딩된 영상 등) 원본을 그대로 사용합니다.
     if (compressedBlob.size === 0 || compressedBlob.size >= file.size) {
