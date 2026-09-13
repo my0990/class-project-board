@@ -62,16 +62,10 @@ npm install
 
 ## 2. 데이터베이스 준비
 
-**옵션 A. 로컬에서 더미 데이터로 빠르게 확인하고 싶을 때 (추천, 가입 불필요)**
-
-`prisma/schema.prisma`의 `provider`를 `"sqlite"`로 바꾸고, `.env`에 아래처럼
-설정하면 별도 가입 없이 바로 테스트할 수 있습니다.
-
-```
-DATABASE_URL="file:./dev.db"
-```
-
-**옵션 B. 실제 배포용 Postgres ([Neon](https://neon.tech), [Supabase](https://supabase.com) 등)**
+로컬 개발과 배포 모두 **같은 방식(Postgres)**을 사용합니다. 로컬용으로
+[Neon](https://neon.tech)(또는 Supabase 등)에 무료 프로젝트를 하나 더
+만들어서 그 연결 문자열을 로컬 `.env`에 쓰는 걸 추천합니다 (배포용 DB와는
+분리해서, 로컬에서 이것저것 테스트해도 실제 데이터에 영향이 없도록).
 
 `.env.example`을 복사해 `.env`를 만들고 값을 채워주세요.
 
@@ -80,7 +74,7 @@ cp .env.example .env
 ```
 
 ```
-DATABASE_URL="postgresql://..."
+DATABASE_URL="postgresql://..."   # 로컬 개발용 Neon 프로젝트의 연결 문자열
 R2_ACCOUNT_ID="..."
 R2_ACCESS_KEY_ID="..."
 R2_SECRET_ACCESS_KEY="..."
@@ -89,6 +83,8 @@ R2_PUBLIC_URL="https://pub-xxxx.r2.dev"
 ```
 
 Cloudflare R2 버킷/토큰 발급 방법은 `.env.example`의 안내 주석을 참고하세요.
+(R2 값 없이도 텍스트만으로는 로컬 테스트가 가능합니다. 사진/동영상 업로드까지
+테스트하려면 R2 값이 필요합니다.)
 
 ## 3. 테이블 생성 + 초기 데이터 넣기
 
@@ -96,12 +92,6 @@ Cloudflare R2 버킷/토큰 발급 방법은 `.env.example`의 안내 주석을 
 npx prisma migrate dev --name init
 npm run db:seed
 ```
-
-> UOI/LOI/단계 구조로 스키마가 바뀌기 전(예전 버전)부터 이미 로컬 `dev.db`를
-> 만들어 쓰고 있었다면, 테이블 구조 자체가 달라져서 기존 마이그레이션 위에
-> 그대로 적용할 수 없습니다. 로컬 더미 데이터는 지워도 되는 데이터이니
-> `npx prisma migrate reset` 한 번으로 DB를 초기화하고 새 마이그레이션 +
-> 시드를 한 번에 다시 적용하세요.
 
 `db:seed`는 `prisma/seed.ts`에 적힌 대로 다음을 만듭니다:
 
@@ -121,27 +111,24 @@ npm run dev
 ```
 
 `http://localhost:3000`에서 홈 화면을, `http://localhost:3000/admin`에서
-관리자 페이지를 확인할 수 있습니다. 사진/동영상 업로드까지 테스트하려면 `.env`에
-R2 관련 값들이 필요합니다(옵션 A로 로컬 더미 테스트만 할 때는 사진/동영상
-없이 텍스트만 등록해도 됩니다).
+관리자 페이지를 확인할 수 있습니다.
 
 ## 5. Vercel 배포
 
-1. `prisma/schema.prisma`의 `provider`가 `"postgresql"`인지 확인합니다 (로컬 더미 테스트로 `"sqlite"`로 바꿨다면 되돌리세요).
-2. 이 폴더를 GitHub 저장소로 push 합니다.
-3. [vercel.com](https://vercel.com)에서 New Project → 방금 만든 저장소 Import.
-4. 프로젝트의 **Storage** 탭 → Marketplace에서 **Neon**(또는 Supabase) 연동 → 프로젝트에 연결하면 `DATABASE_URL`이 자동으로 채워집니다.
-5. [Cloudflare 대시보드](https://dash.cloudflare.com)에서 R2 버킷을 만들고 공개 접근을 켠 뒤, 발급받은 값들을 Vercel 프로젝트의 **Settings → Environment Variables**에 직접 추가합니다:
-   `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`
-6. 환경변수를 모두 넣은 뒤 **Deploy**를 누릅니다.
-7. 배포가 끝나면 실제 테이블을 만들고 초기 데이터를 넣습니다 (로컬 터미널에서 프로덕션 `DATABASE_URL`로 한 번만 실행):
+1. 이 폴더를 GitHub 저장소로 push 합니다.
+2. [vercel.com](https://vercel.com)에서 New Project → 방금 만든 저장소 Import.
+3. **Environment Variables**에 배포용(프로덕션) 값들을 넣습니다 — 로컬 `.env`와는
+   다른, 실제 서비스용 Neon 프로젝트의 연결 문자열을 써야 합니다:
+   `DATABASE_URL`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`
+4. **Deploy**를 누릅니다.
+5. 배포가 끝나면 실제 테이블을 만들고 초기 데이터를 넣습니다 (로컬 터미널에서 프로덕션 `DATABASE_URL`로 한 번만 실행):
 
 ```bash
 npx prisma migrate deploy
 npm run db:seed
 ```
 
-8. 배포된 주소로 접속해 확인합니다. 홈 화면에 프로젝트 제목과 7개 학급 카드가
+6. 배포된 주소로 접속해 확인합니다. 홈 화면에 프로젝트 제목과 7개 학급 카드가
    보이고, 각 학급 페이지에서 단계별로 비밀번호를 입력해 글/이미지를 등록할 수
    있습니다. `/admin`에서 관리자 비밀번호로 수업 단계를 관리하세요.
 
@@ -156,6 +143,5 @@ npm run db:seed
 ## 커스터마이징 아이디어
 
 - 학급 수가 7개보다 늘어나면 `prisma/seed.ts`의 `classes` 배열에 항목만 추가하면 됩니다.
-- 지금은 게시글당 이미지 1장 구조입니다. 여러 장이 필요하면 `Post`와 연결된
-  `PostImage` 모델을 추가하는 방식으로 확장할 수 있습니다.
-- 글 삭제/수정 기능은 아직 없습니다. 필요하면 말씀해주세요.
+- 게시글 수정은 각 단계에서 "수정" 버튼을 누르면 가능합니다 (단계마다 최신 게시글 1개를 계속 고쳐 쓰는 방식).
+- 게시글 삭제 기능은 아직 없습니다. 필요하면 말씀해주세요.

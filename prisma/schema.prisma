@@ -3,9 +3,9 @@ generator client {
 }
 
 datasource db {
-  // 배포용 기본값은 Postgres입니다.
-  // 로컬에서 무료 DB 없이 더미로만 테스트하려면 provider를 "sqlite"로 바꾸고
-  // DATABASE_URL="file:./dev.db" 로 설정하세요.
+  // 로컬 개발과 배포 모두 Postgres를 사용합니다 (무료 Neon 프로젝트를 하나 더
+  // 만들어서 로컬 전용 DATABASE_URL로 쓰는 걸 추천합니다). provider를 굳이
+  // 바꿀 필요가 없습니다.
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
