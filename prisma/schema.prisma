@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // 배포용 기본값은 Postgres입니다.
+  // 로컬에서 무료 DB 없이 더미로만 테스트하려면 provider를 "sqlite"로 바꾸고
+  // DATABASE_URL="file:./dev.db" 로 설정하세요.
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 전체 프로젝트 공통 설정 (딱 1개 row만 존재)
+model Config {
+  id                String   @id @default(cuid())
+  projectTitle      String
+  adminPasswordHash String
+  updatedAt         DateTime @updatedAt
+}
+
+// 탐구 단원 (UOI). 예: uoi1, uoi2, uoi3
+model Uoi {
+  id        String   @id @default(cuid())
+  order     Int      @unique
+  name      String
+  createdAt DateTime @default(now())
+
+  lois Loi[]
+}
+
+// 탐구 주제 (LOI). 하나의 UOI 안에 여러 개가 순서대로 존재합니다.
+model Loi {
+  id        String   @id @default(cuid())
+  uoi       Uoi      @relation(fields: [uoiId], references: [id], onDelete: Cascade)
+  uoiId     String
+  order     Int
+  name      String
+  createdAt DateTime @default(now())
+
+  stages Stage[]
+
+  @@unique([uoiId, order])
+}
+
+// 수업 단계 (예: 관계맺기, 일반화하기). 하나의 LOI 안에 여러 개가 순서대로 존재합니다.
+model Stage {
+  id        String   @id @default(cuid())
+  loi       Loi      @relation(fields: [loiId], references: [id], onDelete: Cascade)
+  loiId     String
+  order     Int
+  name      String
+  createdAt DateTime @default(now())
+
+  posts Post[]
+
+  @@unique([loiId, order])
+}
+
+// 학급 (7개 학급 = 7개 row)
+model ClassRoom {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  name         String
+  teacherName  String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  posts Post[]
+}
+
+// 학급이 특정 단계에서 등록하는 진행 상황 글
+model Post {
+  id          String       @id @default(cuid())
+  classRoom   ClassRoom    @relation(fields: [classRoomId], references: [id], onDelete: Cascade)
+  classRoomId String
+  stage       Stage        @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  stageId     String
+  content     String
+  createdAt   DateTime     @default(now())
+
+  attachments Attachment[]
+}
+
+// 게시글에 첨부된 사진/동영상 (게시글 1개당 여러 개 가능)
+model Attachment {
+  id        String   @id @default(cuid())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  url       String
+  type      String // "image" | "video"
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
