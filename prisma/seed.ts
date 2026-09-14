@@ -49,13 +49,13 @@ const UOIS = [
 const UPDATE_EXISTING = false;
 
 const classes = [
-  { slug: "1", name: "1반", teacherName: "김도윤", password: "class1!" },
-  { slug: "2", name: "2반", teacherName: "박서연", password: "class2!" },
-  { slug: "3", name: "3반", teacherName: "이하준", password: "class3!" },
-  { slug: "4", name: "4반", teacherName: "최지안", password: "class4!" },
-  { slug: "5", name: "5반", teacherName: "정유주", password: "class5!" },
-  { slug: "6", name: "6반", teacherName: "한서준", password: "class6!" },
-  { slug: "7", name: "7반", teacherName: "오나윤", password: "class7!" },
+  { slug: "1", name: "1반", teacherName: "이지혜", password: "class1!" },
+  { slug: "2", name: "2반", teacherName: "강지현", password: "class2!" },
+  { slug: "3", name: "3반", teacherName: "김신영", password: "class3!" },
+  { slug: "4", name: "4반", teacherName: "최규진", password: "class4!" },
+  { slug: "5", name: "5반", teacherName: "신하경", password: "class5!" },
+  { slug: "6", name: "6반", teacherName: "이지훈", password: "class6!" },
+  { slug: "7", name: "7반", teacherName: "탁태현", password: "class7!" },
 ];
 
 // 로컬 더미 테스트용 샘플 게시글
