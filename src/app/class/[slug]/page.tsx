@@ -1,76 +1,22 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { getConfig } from "@/lib/config";
-import ClassBoard from "@/components/ClassBoard";
+import { Suspense } from "react";
+import ClassPageContent from "@/components/ClassPageContent";
+import ClassPageSkeleton from "@/components/ClassPageSkeleton";
 
 export const dynamic = "force-dynamic";
 
-export default async function ClassPage({ params }: { params: { slug: string } }) {
-  const [config, classRoom, uois] = await Promise.all([
-    getConfig(),
-    prisma.classRoom.findUnique({ where: { slug: params.slug } }),
-    prisma.uoi.findMany({
-      orderBy: { order: "asc" },
-      include: {
-        lois: {
-          orderBy: { order: "asc" },
-          include: { stages: { orderBy: { order: "asc" } } },
-        },
-      },
-    }),
-  ]);
-
-  if (!classRoom) {
-    notFound();
-  }
-
-  const posts = await prisma.post.findMany({
-    where: { classRoomId: classRoom.id },
-    orderBy: { createdAt: "desc" },
-    include: { attachments: { orderBy: { order: "asc" } } },
-  });
-
-  const postsByStage = new Map<string, typeof posts>();
-  for (const post of posts) {
-    const list = postsByStage.get(post.stageId) ?? [];
-    list.push(post);
-    postsByStage.set(post.stageId, list);
-  }
-
-  const uoisWithPosts = uois.map((u) => ({
-    id: u.id,
-    name: u.name,
-    lois: u.lois.map((l) => ({
-      id: l.id,
-      name: l.name,
-      stages: l.stages.map((s) => ({
-        id: s.id,
-        name: s.name,
-        posts: postsByStage.get(s.id) ?? [],
-      })),
-    })),
-  }));
-
-  const hasAnyStage = uois.some((u) => u.lois.some((l) => l.stages.length > 0));
-
+export default function ClassPage({ params }: { params: { slug: string } }) {
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
       <Link href="/" className="text-sm text-blue-600 hover:underline">
         &larr; 전체 학급 보기
       </Link>
 
-      <p className="mt-3 text-sm font-medium text-blue-600">{config.projectTitle}</p>
-      <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{classRoom.name}</h1>
-      <p className="mt-1 text-gray-500">{classRoom.teacherName ? `${classRoom.teacherName} 선생님` : ""}</p>
-
-      {!hasAnyStage ? (
-        <p className="mt-10 text-gray-400">
-          아직 등록된 탐구 단원(UOI)/탐구 주제(LOI)/수업 단계가 없습니다. 관리자에게 문의해주세요.
-        </p>
-      ) : (
-        <ClassBoard classSlug={classRoom.slug} uois={uoisWithPosts} />
-      )}
+      {/* DB 조회가 오래 걸려도 위의 링크 등 화면 뼈대는 바로 보이고, */}
+      {/* 실제 내용(학급 이름/게시글)만 준비되는 대로 이 자리에 나중에 채워집니다. */}
+      <Suspense fallback={<ClassPageSkeleton />}>
+        <ClassPageContent slug={params.slug} />
+      </Suspense>
     </main>
   );
 }

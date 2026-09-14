@@ -1,25 +1,10 @@
-import { prisma } from "@/lib/prisma";
-import { getConfig } from "@/lib/config";
-import AdminPanel from "@/components/AdminPanel";
+import { Suspense } from "react";
+import AdminContent from "@/components/AdminContent";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage() {
-  const [config, uois] = await Promise.all([
-    getConfig(),
-    prisma.uoi.findMany({
-      orderBy: { order: "asc" },
-      include: {
-        lois: {
-          orderBy: { order: "asc" },
-          include: {
-            stages: { orderBy: { order: "asc" } },
-          },
-        },
-      },
-    }),
-  ]);
-
+export default function AdminPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
       <h1 className="text-2xl font-bold">관리자 설정</h1>
@@ -27,7 +12,11 @@ export default async function AdminPage() {
         프로젝트 제목과 전체 학급이 공통으로 사용할 탐구 단원(UOI) · 탐구 주제(LOI) · 수업 단계를 관리합니다.
       </p>
 
-      <AdminPanel initialTitle={config.projectTitle} initialUois={uois} />
+      {/* DB 조회가 오래 걸려도 위의 제목/설명은 바로 보이고, */}
+      {/* 실제 관리 화면만 준비되는 대로 이 자리에 나중에 채워집니다. */}
+      <Suspense fallback={<LoadingSpinner label="설정을 불러오는 중..." />}>
+        <AdminContent />
+      </Suspense>
     </main>
   );
 }
