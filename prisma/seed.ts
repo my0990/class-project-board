@@ -18,27 +18,27 @@ const STAGE_NAMES = ["관계맺기", "집중하기", "조사하기", "조직 및
 
 const UOIS = [
   {
-    name: "uoi1",
+    name: "UOI1",
     lois: [
-      { name: "loi1", stages: STAGE_NAMES },
-      { name: "loi2", stages: STAGE_NAMES },
-      { name: "loi3", stages: STAGE_NAMES },
+      { name: "LOI1", stages: STAGE_NAMES },
+      { name: "LOI2", stages: STAGE_NAMES },
+      { name: "LOI3", stages: STAGE_NAMES },
     ],
   },
   {
-    name: "uoi2",
+    name: "UOI2",
     lois: [
-      { name: "loi1", stages: STAGE_NAMES },
-      { name: "loi2", stages: STAGE_NAMES },
-      { name: "loi3", stages: STAGE_NAMES },
+      { name: "LOI1", stages: STAGE_NAMES },
+      { name: "LOI2", stages: STAGE_NAMES },
+      { name: "LOI3", stages: STAGE_NAMES },
     ],
   },
   {
-    name: "uoi3",
+    name: "UOI3",
     lois: [
-      { name: "loi1", stages: STAGE_NAMES },
-      { name: "loi2", stages: STAGE_NAMES },
-      { name: "loi3", stages: STAGE_NAMES },
+      { name: "LOI1", stages: STAGE_NAMES },
+      { name: "LOI2", stages: STAGE_NAMES },
+      { name: "LOI3", stages: STAGE_NAMES },
     ],
   },
 ];

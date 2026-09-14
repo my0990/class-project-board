@@ -352,7 +352,7 @@ export default function AdminPanel({
                   <input
                     value={newLoiName[uoi.id] ?? ""}
                     onChange={(e) => setNewLoiName((r) => ({ ...r, [uoi.id]: e.target.value }))}
-                    placeholder="새 탐구 주제(LOI) 이름 (예: loi4)"
+                    placeholder="새 탐구 주제(LOI) 이름 (예: LOI4)"
                     className="min-w-[10rem] flex-1 rounded-lg border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:outline-none"
                   />
                   <button
@@ -383,7 +383,7 @@ export default function AdminPanel({
           <input
             value={newUoiName}
             onChange={(e) => setNewUoiName(e.target.value)}
-            placeholder="새 탐구 단원(UOI) 이름 (예: uoi4)"
+            placeholder="새 탐구 단원(UOI) 이름 (예: UOI4)"
             className="min-w-[10rem] flex-1 rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
           />
           <button
