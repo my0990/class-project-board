@@ -13,7 +13,25 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
-type Status = "checking" | "unsupported" | "idle" | "subscribed" | "denied" | "error";
+type Status = "checking" | "unsupported" | "idle" | "subscribed" | "denied" | "error" | "ios-need-install";
+
+// 아이폰/아이패드의 사파리(및 사파리 엔진을 쓰는 다른 브라우저들)는 "홈 화면에 추가"로
+// 설치한 앱(PWA) 형태로 열었을 때만 웹 푸시 알림을 지원합니다. 그냥 브라우저 탭으로
+// 열려 있으면 알림 권한 자체를 요청할 수 없습니다.
+function isIosDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const isIphoneOrIpad = /iphone|ipad|ipod/i.test(ua);
+  // iPadOS 13+ 는 종종 데스크톱 Mac인 것처럼 UA를 보고하므로 터치 지원 여부로 보완 확인합니다.
+  const isIpadOSDesktopMode = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+  return isIphoneOrIpad || isIpadOSDesktopMode;
+}
+
+function isStandaloneMode(): boolean {
+  if (typeof window === "undefined") return false;
+  const nav = navigator as Navigator & { standalone?: boolean };
+  return window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true;
+}
 
 export default function PushSubscribeButton() {
   const [status, setStatus] = useState<Status>("checking");
@@ -21,7 +39,15 @@ export default function PushSubscribeButton() {
 
   useEffect(() => {
     async function check() {
-      if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      if (typeof window === "undefined") {
+        setStatus("unsupported");
+        return;
+      }
+      if (isIosDevice() && !isStandaloneMode()) {
+        setStatus("ios-need-install");
+        return;
+      }
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
         setStatus("unsupported");
         return;
       }
@@ -83,6 +109,15 @@ export default function PushSubscribeButton() {
   }
 
   if (status === "checking" || status === "unsupported") return null;
+
+  if (status === "ios-need-install") {
+    return (
+      <p className="text-xs text-gray-500">
+        📱 iPhone/iPad에서 새 글 알림을 받으려면: Safari 하단(또는 상단)의 공유 버튼(⬆️)을 누른 뒤
+        “홈 화면에 추가”를 선택해 앱처럼 설치하고, 홈 화면에 생긴 아이콘으로 다시 열어주세요.
+      </p>
+    );
+  }
 
   if (status === "subscribed") {
     return <p className="text-xs text-gray-400">🔔 새 글 알림이 켜져 있어요.</p>;
