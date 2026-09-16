@@ -49,3 +49,56 @@ export async function sendPushToAll(payload: PushPayload): Promise<void> {
     })
   );
 }
+
+// 문제 진단용: VAPID 키가 서버에 제대로 설정되어 있는지, 구독이 몇 개나 저장돼
+// 있는지, 실제로 보내봤을 때 각 구독별로 성공/실패했는지를 자세히 알려줍니다.
+export async function sendTestPush(): Promise<{
+  hasPublicKey: boolean;
+  hasPrivateKey: boolean;
+  totalSubscriptions: number;
+  sent: number;
+  failed: number;
+  details: string[];
+}> {
+  const hasPublicKey = Boolean(VAPID_PUBLIC_KEY);
+  const hasPrivateKey = Boolean(VAPID_PRIVATE_KEY);
+  const subs = await prisma.pushSubscription.findMany();
+
+  if (!hasPublicKey || !hasPrivateKey) {
+    return {
+      hasPublicKey,
+      hasPrivateKey,
+      totalSubscriptions: subs.length,
+      sent: 0,
+      failed: 0,
+      details: ["VAPID_PUBLIC_KEY 또는 VAPID_PRIVATE_KEY가 서버(Vercel)에 설정되어 있지 않습니다."],
+    };
+  }
+  if (subs.length === 0) {
+    return { hasPublicKey, hasPrivateKey, totalSubscriptions: 0, sent: 0, failed: 0, details: ["저장된 알림 구독이 없습니다."] };
+  }
+
+  ensureConfigured();
+  const body = JSON.stringify({ title: "테스트 알림", body: "정상적으로 도착했어요!", url: "/" });
+
+  let sent = 0;
+  const details: string[] = [];
+
+  await Promise.all(
+    subs.map(async (sub) => {
+      const label = `...${sub.endpoint.slice(-16)}`;
+      try {
+        await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, body);
+        sent++;
+        details.push(`성공: ${label}`);
+      } catch (err: unknown) {
+        const statusCode = (err as { statusCode?: number; body?: string } | null)?.statusCode;
+        const errBody = (err as { body?: string } | null)?.body;
+        const message = err instanceof Error ? err.message : String(err);
+        details.push(`실패: ${label} (status=${statusCode ?? "?"}) ${errBody ?? message}`);
+      }
+    })
+  );
+
+  return { hasPublicKey, hasPrivateKey, totalSubscriptions: subs.length, sent, failed: subs.length - sent, details };
+}
