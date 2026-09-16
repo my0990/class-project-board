@@ -54,7 +54,7 @@ export default function NewPostForm({
 
   const totalCount = keptAttachments.length + files.length;
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(e.target.files ?? []);
     if (selected.length === 0) return;
 
@@ -66,13 +66,28 @@ export default function NewPostForm({
     const room = Math.max(0, MAX_FILES - totalCount);
     const accepted = selected.slice(0, room);
 
-    const newOnes: PendingFile[] = accepted.map((file) => ({
-      file,
-      preview: URL.createObjectURL(file),
-      isVideo: file.type.startsWith("video/"),
-      status: "대기",
-      progress: 0,
-    }));
+    // 안드로이드에서는 사진 선택 시 브라우저가 받는 파일 접근 권한(content:// 임시 참조)이
+    // 시간이 지나면(글 작성 중 지연, 압축 대기 등) 만료되어 나중에 읽으려 하면 실패할 수
+    // 있습니다. 그래서 선택된 "바로 이 순간"에 파일 내용을 메모리로 완전히 읽어들여, 이후
+    // 과정에서는 원본 파일 참조를 다시 건드리지 않도록 합니다.
+    const newOnes: PendingFile[] = await Promise.all(
+      accepted.map(async (file) => {
+        let stableFile = file;
+        try {
+          const bytes = await file.arrayBuffer();
+          stableFile = new File([bytes], file.name, { type: file.type, lastModified: file.lastModified });
+        } catch (err) {
+          console.error("파일을 미리 읽어들이는 데 실패했습니다. 원본 파일로 계속 진행합니다.", err);
+        }
+        return {
+          file: stableFile,
+          preview: URL.createObjectURL(stableFile),
+          isVideo: stableFile.type.startsWith("video/"),
+          status: "대기" as FileStatus,
+          progress: 0,
+        };
+      })
+    );
 
     setFiles((prev) => [...prev, ...newOnes]);
     if (fileInputRef.current) fileInputRef.current.value = "";
