@@ -135,5 +135,12 @@ export async function updatePost(
   revalidatePath(`/class/${classSlug}`);
   revalidatePath("/");
 
+  // 알림 전송에 실패해도 게시글 수정 자체는 이미 성공했으니 계속 진행합니다.
+  await sendPushToAll({
+    title: `${classRoom.name} 글 수정`,
+    body: trimmedContent || "사진/동영상이 수정되었습니다.",
+    url: `/class/${classSlug}`,
+  }).catch((err) => console.error("푸시 알림 전송 실패:", err));
+
   return { success: true };
 }
