@@ -66,7 +66,22 @@ export default function PushSubscribeButton() {
         setStatus("error");
       }
     }
+
     check();
+
+    // 브라우저 설정 화면에서 알림 권한을 바꾸고 다시 이 탭으로 돌아왔을 때,
+    // 새로고침 없이도 상태(차단/허용 여부)를 다시 확인합니다.
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        check();
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", check);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", check);
+    };
   }, []);
 
   async function handleSubscribe() {
