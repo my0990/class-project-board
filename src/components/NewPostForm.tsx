@@ -117,9 +117,9 @@ export default function NewPostForm({
 
       for (let i = 0; i < files.length; i++) {
         const item = files[i];
+        let processed: File = item.file;
 
         try {
-          let processed: File = item.file;
           updateFileStatus(i, { status: "압축 중", progress: 0 });
 
           if (item.isVideo) {
@@ -138,7 +138,11 @@ export default function NewPostForm({
         } catch (fileErr) {
           // 어떤 파일에서 실패했는지 목록에 바로 표시해서, 다시 시도할 때 헷갈리지 않게 합니다.
           updateFileStatus(i, { status: "실패" });
-          throw fileErr;
+          // 원인 파악을 위해, 실제로 업로드를 시도한 파일의 용량/형식을 에러 메시지에 같이 남깁니다.
+          const sizeMB = (processed.size / (1024 * 1024)).toFixed(1);
+          const typeLabel = processed.type || item.file.type || "알 수 없음";
+          const baseMessage = fileErr instanceof Error ? fileErr.message : "업로드에 실패했습니다.";
+          throw new Error(`${baseMessage} [${sizeMB}MB, ${typeLabel}]`);
         }
       }
 
