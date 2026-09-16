@@ -118,22 +118,28 @@ export default function NewPostForm({
       for (let i = 0; i < files.length; i++) {
         const item = files[i];
 
-        let processed: File = item.file;
-        updateFileStatus(i, { status: "압축 중", progress: 0 });
+        try {
+          let processed: File = item.file;
+          updateFileStatus(i, { status: "압축 중", progress: 0 });
 
-        if (item.isVideo) {
-          processed = await compressVideo(item.file, (ratio) => updateFileStatus(i, { progress: ratio }));
-        } else {
-          processed = await compressImage(item.file);
+          if (item.isVideo) {
+            processed = await compressVideo(item.file, (ratio) => updateFileStatus(i, { progress: ratio }));
+          } else {
+            processed = await compressImage(item.file);
+          }
+
+          updateFileStatus(i, { status: "업로드 중" });
+          const { url } = await uploadFileToR2(processed);
+
+          const uploaded: { url: string; type: "image" | "video" } = { url, type: item.isVideo ? "video" : "image" };
+          uploadedNow.push(uploaded);
+          attachments.push(uploaded);
+          updateFileStatus(i, { status: "완료", progress: 1 });
+        } catch (fileErr) {
+          // 어떤 파일에서 실패했는지 목록에 바로 표시해서, 다시 시도할 때 헷갈리지 않게 합니다.
+          updateFileStatus(i, { status: "실패" });
+          throw fileErr;
         }
-
-        updateFileStatus(i, { status: "업로드 중" });
-        const { url } = await uploadFileToR2(processed);
-
-        const uploaded: { url: string; type: "image" | "video" } = { url, type: item.isVideo ? "video" : "image" };
-        uploadedNow.push(uploaded);
-        attachments.push(uploaded);
-        updateFileStatus(i, { status: "완료", progress: 1 });
       }
 
       const result = isEdit

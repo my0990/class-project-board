@@ -48,8 +48,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       ContentType: contentType,
     });
 
-    // 5분 이내에만 유효한 업로드 URL (동영상 압축/업로드에 시간이 걸릴 수 있어 여유를 뒀습니다)
-    const uploadUrl = await getSignedUrl(r2, command, { expiresIn: 60 * 5 });
+    // 15분 이내에만 유효한 업로드 URL. 동영상 압축에 시간이 걸리거나, 느린 모바일 회선에서
+    // 업로드가 자동으로 재시도되는 경우를 감안해 여유를 넉넉히 뒀습니다.
+    const uploadUrl = await getSignedUrl(r2, command, { expiresIn: 60 * 15 });
     const publicUrl = `${R2_PUBLIC_URL}/${key}`;
 
     return NextResponse.json({ uploadUrl, publicUrl });
