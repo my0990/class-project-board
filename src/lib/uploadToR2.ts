@@ -56,14 +56,37 @@ async function withRetry<T>(task: () => Promise<T>, friendlyMessage: string): Pr
   throw new UploadError(`${friendlyMessage} 네트워크가 불안정한 것 같아요. 잠시 후 다시 시도해주세요.`);
 }
 
+// 일부 휴대폰 카메라 앱은 File 객체의 type을 비워서 넘기는 경우가 있어,
+// 그런 경우 파일 확장자로 최대한 추측해서 채워줍니다.
+function guessContentType(file: File): string {
+  if (file.type) return file.type;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const map: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    gif: "image/gif",
+    heic: "image/heic",
+    heif: "image/heif",
+    mp4: "video/mp4",
+    mov: "video/quicktime",
+    webm: "video/webm",
+    "3gp": "video/3gpp",
+  };
+  return map[ext] ?? "application/octet-stream";
+}
+
 export async function uploadFileToR2(file: File): Promise<{ url: string }> {
+  const contentType = guessContentType(file);
+
   const { uploadUrl, publicUrl } = await withRetry(async () => {
     const res = await fetchWithTimeout(
       "/api/upload",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: file.name, contentType: file.type }),
+        body: JSON.stringify({ filename: file.name, contentType }),
       },
       15_000
     );
@@ -81,7 +104,7 @@ export async function uploadFileToR2(file: File): Promise<{ url: string }> {
       uploadUrl,
       {
         method: "PUT",
-        headers: { "Content-Type": file.type },
+        headers: { "Content-Type": contentType },
         body: file,
       },
       120_000 // 느린 회선에서 큰 동영상을 올릴 때도 끝까지 전송될 시간을 넉넉히 둡니다.

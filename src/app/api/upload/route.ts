@@ -4,15 +4,13 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { NextResponse } from "next/server";
 import { r2, R2_BUCKET, R2_PUBLIC_URL } from "@/lib/r2";
 
-const ALLOWED_CONTENT_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  "video/mp4",
-  "video/webm",
-  "video/quicktime",
-];
+// 특정 확장자만 허용하면 휴대폰 카메라가 만드는 형식(예: 아이폰의 HEIC/HEIF,
+// 일부 안드로이드 기기의 특수 포맷)이 목록에 없어서 업로드 자체가 막혀버릴 수 있습니다.
+// 실제로 저장만 할 뿐 서버가 내용을 해석하지 않으므로, image/* 와 video/* 는
+// 폭넓게 허용하고 완전히 다른 종류(예: 문서 파일)만 걸러냅니다.
+function isAllowedContentType(contentType: string): boolean {
+  return contentType.startsWith("image/") || contentType.startsWith("video/");
+}
 
 // 클라이언트가 사진/동영상을 Cloudflare R2에 직접 업로드할 수 있도록
 // 미리 서명된(presigned) 업로드 URL을 발급해주는 라우트입니다.
@@ -28,7 +26,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (!filename || !contentType) {
       return NextResponse.json({ error: "파일 정보가 올바르지 않습니다." }, { status: 400 });
     }
-    if (!ALLOWED_CONTENT_TYPES.includes(contentType)) {
+    if (!isAllowedContentType(contentType)) {
       return NextResponse.json({ error: "지원하지 않는 파일 형식입니다." }, { status: 400 });
     }
     if (!R2_BUCKET || !R2_PUBLIC_URL) {
