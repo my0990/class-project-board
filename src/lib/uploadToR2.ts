@@ -92,6 +92,14 @@ function guessContentType(file: File): string {
 export async function uploadFileToR2(file: File): Promise<{ url: string }> {
   const contentType = guessContentType(file);
 
+  // 크롬(특히 안드로이드)에서는 File 객체를 그대로 fetch의 body로 넘기면, 실제 전송
+  // 시점에 "선택했을 때와 파일이 달라진 것 같다"고 판단해 net::ERR_UPLOAD_FILE_CHANGED로
+  // 업로드 자체를 거부하는 경우가 있습니다 (안드로이드의 content:// 임시 파일 접근 특성 때문).
+  // 이를 피하기 위해 지금 이 시점에 파일 내용을 메모리에 완전히 읽어들여서, 원본 파일
+  // 경로와는 무관한 순수 데이터 덩어리(Blob)로 만들어 전송합니다.
+  const fileBytes = await file.arrayBuffer();
+  const uploadBlob = new Blob([fileBytes], { type: contentType });
+
   const { uploadUrl, publicUrl } = await withRetry(async () => {
     const res = await fetchWithTimeout(
       "/api/upload",
@@ -117,7 +125,7 @@ export async function uploadFileToR2(file: File): Promise<{ url: string }> {
       {
         method: "PUT",
         headers: { "Content-Type": contentType },
-        body: file,
+        body: uploadBlob,
       },
       120_000 // 느린 회선에서 큰 동영상을 올릴 때도 끝까지 전송될 시간을 넉넉히 둡니다.
     );
