@@ -21,6 +21,15 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// 브라우저가 실제로 던진 원본 에러(이름/메시지)를 최대한 짧게 문자열로 남깁니다.
+// 화면에 그대로 노출해서, "네트워크 불안정"이라는 뭉뚱그린 설명 뒤에 숨겨진
+// 진짜 원인(TypeError, AbortError, CORS 관련 문구 등)을 확인할 수 있게 합니다.
+function describeRawError(err: unknown): string {
+  if (err instanceof DOMException) return `${err.name}: ${err.message}`;
+  if (err instanceof Error) return `${err.name}: ${err.message}`;
+  return String(err);
+}
+
 async function fetchWithTimeout(input: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -51,9 +60,12 @@ async function withRetry<T>(task: () => Promise<T>, friendlyMessage: string): Pr
   }
 
   // 서버가 명확한 이유로 거부한 경우(예: 지원하지 않는 파일 형식)는 그 메시지를 그대로 보여주고,
-  // 그 외의(주로 네트워크) 오류는 재시도까지 실패했다는 것을 알기 쉽게 안내합니다.
+  // 그 외의 오류는 "네트워크가 불안정한 것 같아요" 안내 + 브라우저가 실제로 던진 원본 에러를
+  // 괄호 안에 그대로 남겨서, 진짜 원인을 화면에서 바로 확인할 수 있게 합니다.
   if (lastErr instanceof UploadError && !lastErr.retryable) throw lastErr;
-  throw new UploadError(`${friendlyMessage} 네트워크가 불안정한 것 같아요. 잠시 후 다시 시도해주세요.`);
+  throw new UploadError(
+    `${friendlyMessage} 네트워크가 불안정한 것 같아요. 잠시 후 다시 시도해주세요. (${describeRawError(lastErr)})`
+  );
 }
 
 // 일부 휴대폰 카메라 앱은 File 객체의 type을 비워서 넘기는 경우가 있어,
@@ -111,7 +123,13 @@ export async function uploadFileToR2(file: File): Promise<{ url: string }> {
     );
 
     if (!putRes.ok) {
-      throw new UploadError("파일 업로드에 실패했습니다.", putRes.status >= 500);
+      // R2가 실제로 응답은 했지만 거부한 경우(서명 오류, 권한 문제 등) 그 내용을
+      // 최대한 그대로 보여줘서 "네트워크 문제"와 구분되게 합니다.
+      const bodyText = await putRes.text().catch(() => "");
+      throw new UploadError(
+        `파일 업로드에 실패했습니다. (HTTP ${putRes.status}${bodyText ? `: ${bodyText.slice(0, 200)}` : ""})`,
+        putRes.status >= 500
+      );
     }
   }, "파일 업로드에 실패했습니다.");
 

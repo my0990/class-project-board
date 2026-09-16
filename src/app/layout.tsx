@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import SiteGate from "@/components/SiteGate";
+import InAppBrowserNotice from "@/components/InAppBrowserNotice";
 
 export const metadata: Metadata = {
   title: "프로젝트 수업 진행 현황",
@@ -36,6 +37,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
+        <InAppBrowserNotice />
         <SiteGate>{children}</SiteGate>
       </body>
     </html>
