@@ -138,11 +138,13 @@ export default function NewPostForm({
         } catch (fileErr) {
           // 어떤 파일에서 실패했는지 목록에 바로 표시해서, 다시 시도할 때 헷갈리지 않게 합니다.
           updateFileStatus(i, { status: "실패" });
-          // 원인 파악을 위해, 실제로 업로드를 시도한 파일의 용량/형식을 에러 메시지에 같이 남깁니다.
+          // 원인 파악을 위해, 실제로 업로드를 시도한 파일의 용량/형식/실제 바이너리 여부를
+          // 에러 메시지에 같이 남깁니다 (isBlob=false가 뜨면 진짜 파일 데이터가 아니라는 뜻).
           const sizeMB = (processed.size / (1024 * 1024)).toFixed(1);
           const typeLabel = processed.type || item.file.type || "알 수 없음";
+          const isBlob = processed instanceof Blob;
           const baseMessage = fileErr instanceof Error ? fileErr.message : "업로드에 실패했습니다.";
-          throw new Error(`${baseMessage} [${sizeMB}MB, ${typeLabel}]`);
+          throw new Error(`${baseMessage} [${sizeMB}MB, ${typeLabel}, isBlob=${isBlob}]`);
         }
       }
 
