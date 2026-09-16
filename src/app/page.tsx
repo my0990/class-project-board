@@ -2,13 +2,17 @@ import Link from "next/link";
 import { Suspense } from "react";
 import HomeContent from "@/components/HomeContent";
 import HomeSkeleton from "@/components/HomeSkeleton";
+import PushSubscribeButton from "@/components/PushSubscribeButton";
 
 export const dynamic = "force-dynamic";
 
 export default function HomePage() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 sm:py-14">
-      <p className="text-sm font-medium text-blue-600">전체 학급 공통 프로젝트</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium text-blue-600">전체 학급 공통 프로젝트</p>
+        <PushSubscribeButton />
+      </div>
 
       {/* DB 조회가 오래 걸려도(예: Neon 콜드스타트) 화면 뼈대는 바로 보이고, */}
       {/* 실제 내용(제목/학급 카드)만 준비되는 대로 이 자리에 나중에 채워집니다. */}

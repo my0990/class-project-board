@@ -91,3 +91,12 @@ model Attachment {
   order     Int      @default(0)
   createdAt DateTime @default(now())
 }
+
+// "새 글 알림 받기"를 누른 브라우저(기기)의 웹 푸시 구독 정보
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}
