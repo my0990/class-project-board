@@ -36,6 +36,9 @@ function isStandaloneMode(): boolean {
 export default function PushSubscribeButton() {
   const [status, setStatus] = useState<Status>("checking");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // "다음에"를 누르면 이번에 화면을 보는 동안만 팝업을 숨깁니다. 새로고침하거나
+  // 나중에 다시 방문하면(=컴포넌트가 새로 마운트되면) 허용하기 전까지 다시 뜹니다.
+  const [popupDismissed, setPopupDismissed] = useState(false);
 
   useEffect(() => {
     async function check() {
@@ -146,8 +149,11 @@ export default function PushSubscribeButton() {
     );
   }
 
-  return (
-    <div>
+  // 아직 알림을 허용도, 차단도 하지 않은 상태(idle)입니다. 놓치기 쉬운 작은
+  // 버튼 대신, 방문할 때마다 화면 가운데에 큰 팝업으로 알림 허용을 권합니다.
+  // "다음에"를 눌러도 다음 방문 때 다시 뜨고, 실제로 허용하면 더는 뜨지 않습니다.
+  if (popupDismissed) {
+    return (
       <button
         type="button"
         onClick={handleSubscribe}
@@ -155,7 +161,38 @@ export default function PushSubscribeButton() {
       >
         🔔 새 글 알림 받기
       </button>
-      {errorMsg && <p className="mt-1 text-xs text-red-500">{errorMsg}</p>}
+    );
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+        <p className="text-base font-semibold text-gray-900">🔔 새 글 알림을 받아보시겠어요?</p>
+        <p className="mt-1.5 text-sm text-gray-500">
+          우리 반 프로젝트에 새 글이 올라올 때마다 바로 알려드려요.
+        </p>
+        {errorMsg && <p className="mt-2 text-xs text-red-500">{errorMsg}</p>}
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setPopupDismissed(true)}
+            className="rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100"
+          >
+            다음에
+          </button>
+          <button
+            type="button"
+            onClick={handleSubscribe}
+            className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            🔔 알림 받기
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
