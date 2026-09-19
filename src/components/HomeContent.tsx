@@ -53,7 +53,7 @@ export default async function HomeContent() {
           아직 등록된 탐구 단원(UOI)/탐구 주제(LOI)/수업 단계가 없습니다. 관리자 페이지에서 만들어주세요.
         </p>
       ) : (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid grid-cols-1 gap-4">
           {classes.map((c) => (
             <ClassCard
               key={c.id}

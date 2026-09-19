@@ -11,7 +11,7 @@ export default function HomeSkeleton() {
         <div className="h-7 w-20 rounded-full bg-gray-100" />
       </div>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-8 grid grid-cols-1 gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="h-40 rounded-xl border border-gray-100 bg-gray-50" />
         ))}
