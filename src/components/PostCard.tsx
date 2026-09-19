@@ -195,6 +195,8 @@ export default function PostCard({ post }: Props) {
                 <img
                   src={img.url}
                   alt=""
+                  loading="lazy"
+                  decoding="async"
                   onClick={(e) => e.stopPropagation()}
                   className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
                 />
@@ -209,14 +211,20 @@ export default function PostCard({ post }: Props) {
 
 function renderMedia(a: Attachment, onImageClick: (attachmentId: string) => void, className: string) {
   if (a.type === "video") {
-    return <video src={a.url} controls className={`rounded-lg bg-black ${className}`} />;
+    // preload="metadata": 실제로 재생 버튼을 누르기 전까지는 영상 내용을 통째로
+    // 미리 받아오지 않고, 길이/썸네일 정도만 가볍게 가져옵니다.
+    return <video src={a.url} controls preload="metadata" className={`rounded-lg bg-black ${className}`} />;
   }
   return (
     // 다양한 이미지 호스트를 별도 설정 없이 지원하기 위해 next/image 대신 img 태그를 사용합니다.
+    // loading="lazy": 화면에 보이지 않는(스크롤해야 나오는) 사진은 그 근처에 올 때까지
+    // 미리 받아오지 않아서, 처음 화면을 그릴 때 훨씬 가벼워집니다.
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={a.url}
       alt=""
+      loading="lazy"
+      decoding="async"
       onClick={() => onImageClick(a.id)}
       className={`cursor-zoom-in rounded-lg transition hover:opacity-90 ${className}`}
     />

@@ -9,6 +9,9 @@ type Props = { slug: string };
 // page.tsx에서 <Suspense>로 감싸서, DB 조회가 오래 걸려도 "← 전체 학급 보기" 같은
 // 화면 뼈대는 먼저 보이고 이 부분만 나중에 채워집니다.
 export default async function ClassPageContent({ slug }: Props) {
+  // 세 조회를 전부 동시에 시작합니다. 게시글 목록은 (특정 classRoomId 대신)
+  // "학급의 slug"로 바로 필터링해서, 학급 조회가 끝나기를 기다렸다가 순서대로
+  // 게시글을 조회하지 않아도 되게 했습니다 - DB 왕복 횟수를 2번에서 1번으로 줄여줍니다.
   const [config, classRoom, uois] = await Promise.all([
     getConfig(),
     prisma.classRoom.findUnique({ where: { slug } }),
@@ -17,7 +20,18 @@ export default async function ClassPageContent({ slug }: Props) {
       include: {
         lois: {
           orderBy: { order: "asc" },
-          include: { stages: { orderBy: { order: "asc" } } },
+          include: {
+            stages: {
+              orderBy: { order: "asc" },
+              include: {
+                posts: {
+                  where: { classRoom: { slug } },
+                  orderBy: { createdAt: "desc" },
+                  include: { attachments: { orderBy: { order: "asc" } } },
+                },
+              },
+            },
+          },
         },
       },
     }),
@@ -25,19 +39,6 @@ export default async function ClassPageContent({ slug }: Props) {
 
   if (!classRoom) {
     notFound();
-  }
-
-  const posts = await prisma.post.findMany({
-    where: { classRoomId: classRoom.id },
-    orderBy: { createdAt: "desc" },
-    include: { attachments: { orderBy: { order: "asc" } } },
-  });
-
-  const postsByStage = new Map<string, typeof posts>();
-  for (const post of posts) {
-    const list = postsByStage.get(post.stageId) ?? [];
-    list.push(post);
-    postsByStage.set(post.stageId, list);
   }
 
   const uoisWithPosts = uois.map((u) => ({
@@ -49,7 +50,7 @@ export default async function ClassPageContent({ slug }: Props) {
       stages: l.stages.map((s) => ({
         id: s.id,
         name: s.name,
-        posts: postsByStage.get(s.id) ?? [],
+        posts: s.posts,
       })),
     })),
   }));
