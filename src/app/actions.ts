@@ -7,7 +7,7 @@ import { sendPushToAll } from "@/lib/webpush";
 
 type Result = { success: true } | { error: string };
 
-const MAX_ATTACHMENTS = 5;
+const MAX_ATTACHMENTS = 15;
 
 export async function loginWithClassCode(
   code: string

@@ -6,7 +6,7 @@ import { createPost, updatePost } from "@/app/actions";
 import { compressImage, compressVideo } from "@/lib/mediaCompression";
 import { uploadFileToR2 } from "@/lib/uploadToR2";
 
-const MAX_FILES = 5;
+const MAX_FILES = 15;
 
 type FileStatus = "대기" | "압축 중" | "업로드 중" | "완료" | "실패";
 
