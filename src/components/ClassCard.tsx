@@ -31,22 +31,45 @@ export default function ClassCard({ slug, name, teacherName, uois }: Props) {
 
       {flat.length > 0 ? (
         <>
-          <div className="mt-4 space-y-2.5">
+          <div className="mt-4 space-y-3">
             {uois.map((u) => {
-              const stages = u.lois.flatMap((l) => l.stages);
-              const total = stages.length;
-              const done = stages.filter((s) => s.done).length;
-              const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+              const uoiStages = u.lois.flatMap((l) => l.stages);
+              const uoiTotal = uoiStages.length;
+              const uoiDone = uoiStages.filter((s) => s.done).length;
               return (
                 <div key={u.id}>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
+                  <div className="flex items-center justify-between text-xs font-semibold text-gray-600">
                     <span className="truncate">{u.name}</span>
-                    <span className="flex-none pl-2">
-                      {done}/{total}
+                    <span className="flex-none pl-2 font-normal text-gray-400">
+                      {uoiDone}/{uoiTotal}
                     </span>
                   </div>
-                  <div className="mt-1 h-2 rounded-full bg-gray-200">
-                    <div className="h-2 rounded-full bg-blue-500" style={{ width: `${pct}%` }} />
+                  <div className="mt-1.5 space-y-1.5 border-l-2 border-gray-100 pl-2.5">
+                    {u.lois.map((l) => {
+                      const total = l.stages.length;
+                      const done = l.stages.filter((s) => s.done).length;
+                      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                      const complete = total > 0 && done === total;
+                      return (
+                        <div key={l.id}>
+                          <div className="flex items-center justify-between text-[11px] text-gray-500">
+                            <span className="truncate">
+                              {l.name}
+                              {complete && <span className="ml-1 text-blue-500">완료</span>}
+                            </span>
+                            <span className="flex-none pl-2">
+                              {done}/{total}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 h-1.5 rounded-full bg-gray-200">
+                            <div
+                              className={`h-1.5 rounded-full ${complete ? "bg-blue-500" : "bg-blue-400"}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
