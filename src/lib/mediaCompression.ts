@@ -50,16 +50,18 @@ export async function compressVideo(file: File, onProgress?: (ratio: number) => 
       "-i",
       inputName,
       "-vf",
-      // 원본보다 커지지 않게, 가로/세로 중 긴 쪽을 최대 1280px로 축소 (짝수 크기 보장)
-      "scale=w=1280:h=1280:force_original_aspect_ratio=decrease:force_divisible_by=2",
+      // 원본보다 커지지 않게, 가로/세로 중 긴 쪽을 최대 960px로 축소 (짝수 크기 보장).
+      // 화질보다 압축 속도를 우선하기 위해 일부러 낮춘 값입니다(예전에는 1280px).
+      "scale=w=960:h=960:force_original_aspect_ratio=decrease:force_divisible_by=2",
       "-c:v",
       "libx264",
       "-preset",
-      // 브라우저 안에서 소프트웨어로 압축하다 보니 속도가 느려서, 화질 손해가 크지 않은
-      // 선에서 가장 빠른 프리셋(ultrafast)을 사용합니다.
+      // 브라우저 안에서 소프트웨어로 압축하다 보니 속도가 느려서, 가장 빠른
+      // 프리셋(ultrafast)을 사용합니다.
       "ultrafast",
       "-crf",
-      "28",
+      // 화질보다 속도/용량을 우선하기 위해 28 -> 32로 압축률을 더 높였습니다.
+      "32",
       "-c:a",
       "aac",
       "-b:a",
