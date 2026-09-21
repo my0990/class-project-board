@@ -55,7 +55,9 @@ export async function compressVideo(file: File, onProgress?: (ratio: number) => 
       "-c:v",
       "libx264",
       "-preset",
-      "veryfast",
+      // 브라우저 안에서 소프트웨어로 압축하다 보니 속도가 느려서, 화질 손해가 크지 않은
+      // 선에서 가장 빠른 프리셋(ultrafast)을 사용합니다.
+      "ultrafast",
       "-crf",
       "28",
       "-c:a",
