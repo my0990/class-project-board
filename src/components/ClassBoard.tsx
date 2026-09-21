@@ -32,12 +32,43 @@ type UoiItem = {
   lois: LoiItem[];
 };
 
+// 게시글 등록/수정 후에는 Suspense로 감싸진 이 페이지 부분이 통째로 다시 렌더링되면서
+// 아래 컴포넌트의 React state(useState)가 초기값으로 리셋됩니다. 그래서 "지금 보고 있던
+// UOI/LOI"를 컴포넌트 메모리 대신 주소창(URL 쿼리)에 함께 기록해두고, 다시 렌더링될 때
+// 그 값을 읽어와 복원합니다. Next.js 라우터로 이동하면 탭을 누를 때마다 서버에 다시
+// 데이터를 요청하게 되어 느려지므로, 라우터를 거치지 않고 history.replaceState로 주소창만
+// 조용히 바꿔서 탭 전환 속도에는 영향이 없게 했습니다.
+function getInitialSelection(uois: UoiItem[]): { uoiId: string | null; loiId: string | null } {
+  const fallbackUoi = uois[0] ?? null;
+  const fallbackLoi = fallbackUoi?.lois[0] ?? null;
+
+  if (typeof window === "undefined") {
+    return { uoiId: fallbackUoi?.id ?? null, loiId: fallbackLoi?.id ?? null };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const uoi = uois.find((u) => u.id === params.get("uoi")) ?? fallbackUoi;
+  const loi = uoi?.lois.find((l) => l.id === params.get("loi")) ?? uoi?.lois[0] ?? null;
+
+  return { uoiId: uoi?.id ?? null, loiId: loi?.id ?? null };
+}
+
+function rememberSelectionInUrl(uoiId: string | null, loiId: string | null) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (uoiId) url.searchParams.set("uoi", uoiId);
+  else url.searchParams.delete("uoi");
+  if (loiId) url.searchParams.set("loi", loiId);
+  else url.searchParams.delete("loi");
+  window.history.replaceState(null, "", url);
+}
+
 export default function ClassBoard({ classSlug, uois }: { classSlug: string; uois: UoiItem[] }) {
   const auth = useSiteAuth();
   const isOwnClass = auth.slug === classSlug;
 
-  const [selectedUoiId, setSelectedUoiId] = useState<string | null>(uois[0]?.id ?? null);
-  const [selectedLoiId, setSelectedLoiId] = useState<string | null>(uois[0]?.lois[0]?.id ?? null);
+  const [selectedUoiId, setSelectedUoiId] = useState<string | null>(() => getInitialSelection(uois).uoiId);
+  const [selectedLoiId, setSelectedLoiId] = useState<string | null>(() => getInitialSelection(uois).loiId);
   const selectedUoi = uois.find((u) => u.id === selectedUoiId) ?? uois[0] ?? null;
   const selectedLoi = selectedUoi?.lois.find((l) => l.id === selectedLoiId) ?? selectedUoi?.lois[0] ?? null;
 
@@ -45,9 +76,16 @@ export default function ClassBoard({ classSlug, uois }: { classSlug: string; uoi
   const [editingStageIds, setEditingStageIds] = useState<Set<string>>(new Set());
 
   function selectUoi(uoiId: string) {
-    setSelectedUoiId(uoiId);
     const uoi = uois.find((u) => u.id === uoiId);
-    setSelectedLoiId(uoi?.lois[0]?.id ?? null);
+    const loiId = uoi?.lois[0]?.id ?? null;
+    setSelectedUoiId(uoiId);
+    setSelectedLoiId(loiId);
+    rememberSelectionInUrl(uoiId, loiId);
+  }
+
+  function selectLoi(loiId: string) {
+    setSelectedLoiId(loiId);
+    rememberSelectionInUrl(selectedUoiId, loiId);
   }
 
   function openEdit(stageId: string) {
@@ -112,7 +150,7 @@ export default function ClassBoard({ classSlug, uois }: { classSlug: string; uoi
                     <button
                       key={loi.id}
                       type="button"
-                      onClick={() => setSelectedLoiId(loi.id)}
+                      onClick={() => selectLoi(loi.id)}
                       className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition ${
                         active ? "bg-gray-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                       }`}
