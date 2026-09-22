@@ -19,7 +19,7 @@ model Config {
   // 알림이 나가면(성공/실패 상관없이) 다시 자동으로 꺼집니다 - 매 배포마다 깜빡하고
   // 계속 알림이 나가는 걸 막기 위해서입니다.
   deployNotifyEnabled  Boolean  @default(false)
-  // Vercel "Spend Management" 웹훅이 예산의 50%/75%/100%에 도달할 때마다 보내裼는
+  // Vercel "Spend Management" 웹훅이 예산의 50%/75%/100%에 도달할 때마다 보내주는
   // 최신 사용량 스냅샷입니다. 아직 한 번도 웹훅을 못 받았으면 전부 null입니다.
   vercelSpendBudgetUsd    Int?
   vercelSpendCurrentUsd   Int?
@@ -68,12 +68,15 @@ model Stage {
 
 // 학급 (7개 학급 = 7개 row)
 model ClassRoom {
-  id           String   @id @default(cuid())
-  slug         String   @unique
-  name         String
-  teacherName  String?
-  passwordHash String
-  createdAt    DateTime @default(now())
+  id                String   @id @default(cuid())
+  slug              String   @unique
+  name              String
+  teacherName       String?
+  passwordHash      String
+  createdAt         DateTime @default(now())
+  // 이 반에서 새 글을 올리거나 수정할 때, 알림을 받기로 한 사람들에게 푸시 알림을 보낼지 여부.
+  // 꺼두면 이 반의 글은 조용히 등록/수정되고 아무에게도 알림이 가지 않습니다.
+  pushNotifyEnabled Boolean  @default(true)
 
   posts Post[]
 }

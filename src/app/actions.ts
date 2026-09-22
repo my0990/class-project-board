@@ -75,12 +75,15 @@ export async function createPost(
   revalidatePath(`/class/${classSlug}`);
   revalidatePath("/");
 
+  // 이 반의 알림이 꺼져 있으면(관리자 설정) 조용히 등록만 하고 알림은 보내지 않습니다.
   // 알림 전송에 실패해도 게시글 등록 자체는 이미 성공했으니 계속 진행합니다.
-  await sendPushToAll({
-    title: `${classRoom.name} 새 글`,
-    body: trimmedContent || "사진/동영상이 등록되었습니다.",
-    url: `/class/${classSlug}`,
-  }).catch((err) => console.error("푸시 알림 전송 실패:", err));
+  if (classRoom.pushNotifyEnabled) {
+    await sendPushToAll({
+      title: `${classRoom.name} 새 글`,
+      body: trimmedContent || "사진/동영상이 등록되었습니다.",
+      url: `/class/${classSlug}`,
+    }).catch((err) => console.error("푸시 알림 전송 실패:", err));
+  }
 
   return { success: true };
 }
@@ -135,12 +138,15 @@ export async function updatePost(
   revalidatePath(`/class/${classSlug}`);
   revalidatePath("/");
 
+  // 이 반의 알림이 꺼져 있으면(관리자 설정) 조용히 수정만 하고 알림은 보내지 않습니다.
   // 알림 전송에 실패해도 게시글 수정 자체는 이미 성공했으니 계속 진행합니다.
-  await sendPushToAll({
-    title: `${classRoom.name} 글 수정`,
-    body: trimmedContent || "사진/동영상이 수정되었습니다.",
-    url: `/class/${classSlug}`,
-  }).catch((err) => console.error("푸시 알림 전송 실패:", err));
+  if (classRoom.pushNotifyEnabled) {
+    await sendPushToAll({
+      title: `${classRoom.name} 글 수정`,
+      body: trimmedContent || "사진/동영상이 수정되었습니다.",
+      url: `/class/${classSlug}`,
+    }).catch((err) => console.error("푸시 알림 전송 실패:", err));
+  }
 
   return { success: true };
 }

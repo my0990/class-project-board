@@ -261,6 +261,39 @@ export async function getR2Usage(password: string): Promise<R2UsageResult> {
   return fetchR2Usage();
 }
 
+// ------------------------------------------------------------------
+// 반별 새 글 알림 켜기/끄기
+// ------------------------------------------------------------------
+
+export type ClassNotifySetting = { id: string; name: string; pushNotifyEnabled: boolean };
+
+export async function getClassNotifySettings(
+  password: string
+): Promise<{ data: ClassNotifySetting[] } | { error: string }> {
+  const err = await adminError(password);
+  if (err) return { error: err };
+
+  const classRooms = await prisma.classRoom.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, pushNotifyEnabled: true },
+  });
+
+  return { data: classRooms };
+}
+
+export async function setClassPushNotifyEnabled(
+  password: string,
+  classRoomId: string,
+  enabled: boolean
+): Promise<Result> {
+  const err = await adminError(password);
+  if (err) return { error: err };
+
+  await prisma.classRoom.update({ where: { id: classRoomId }, data: { pushNotifyEnabled: enabled } });
+
+  return { success: true };
+}
+
 // Vercel "Spend Management" 웹훅이 저장해 둔 가장 최근 예산/사용량 스냅샷을 읽어옵니다.
 // (Vercel의 실시간 사용량 API는 이 계정 등급에서 지원되지 않아서, 대신 이 방식을 씁니다.)
 export type VercelSpendSnapshot = {

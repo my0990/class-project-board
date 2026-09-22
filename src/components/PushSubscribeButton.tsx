@@ -87,6 +87,30 @@ export default function PushSubscribeButton() {
     };
   }, []);
 
+  async function handleUnsubscribe() {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+
+      if (subscription) {
+        // 서버에 저장된 구독 정보부터 지워서, 이 기기가 더 이상 알림 대상 목록에 없게 합니다.
+        await fetch("/api/push/subscribe", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        }).catch(() => {});
+        // 브라우저 쪽 구독도 함께 해제합니다.
+        await subscription.unsubscribe();
+      }
+
+      setStatus("idle");
+    } catch (err) {
+      console.error("알림 끄기 실패:", err);
+      setErrorMsg(err instanceof Error ? err.message : "알림을 끄는 데 실패했습니다.");
+      setStatus("error");
+    }
+  }
+
   async function handleSubscribe() {
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     if (!publicKey) {
@@ -138,7 +162,18 @@ export default function PushSubscribeButton() {
   }
 
   if (status === "subscribed") {
-    return <p className="text-xs text-gray-400">🔔 새 글 알림이 켜져 있어요.</p>;
+    return (
+      <div className="flex items-center gap-2">
+        <p className="text-xs text-gray-400">🔔 새 글 알림이 켜져 있어요.</p>
+        <button
+          type="button"
+          onClick={handleUnsubscribe}
+          className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
+        >
+          🔕 알림 끄기
+        </button>
+      </div>
+    );
   }
 
   if (status === "denied") {

@@ -15,6 +15,7 @@ import {
   renameLoi,
   renameStage,
   renameUoi,
+  setClassPushNotifyEnabled,
   setDeployNotifyEnabled,
   updateProjectTitle,
 } from "@/app/admin/actions";
@@ -22,6 +23,7 @@ import {
 type Stage = { id: string; name: string; order: number };
 type Loi = { id: string; name: string; order: number; stages: Stage[] };
 type Uoi = { id: string; name: string; order: number; lois: Loi[] };
+type ClassNotifySetting = { id: string; name: string; pushNotifyEnabled: boolean };
 
 type ActionResult = { success: true } | { error: string };
 
@@ -29,15 +31,18 @@ export default function AdminPanel({
   initialTitle,
   initialUois,
   initialDeployNotifyEnabled,
+  initialClassRooms,
 }: {
   initialTitle: string;
   initialUois: Uoi[];
   initialDeployNotifyEnabled: boolean;
+  initialClassRooms: ClassNotifySetting[];
 }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [title, setTitle] = useState(initialTitle);
   const [deployNotifyEnabled, setDeployNotifyEnabledState] = useState(initialDeployNotifyEnabled);
+  const [classRooms, setClassRooms] = useState(initialClassRooms);
 
   const [uoiRenaming, setUoiRenaming] = useState<Record<string, string>>({});
   const [loiRenaming, setLoiRenaming] = useState<Record<string, string>>({});
@@ -156,6 +161,56 @@ export default function AdminPanel({
             {deployNotifyEnabled ? "다음 배포에서 알림 나감" : "꺼짐"}
           </span>
         </div>
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-5">
+        <h2 className="font-semibold">반별 새 글 알림</h2>
+        <p className="mt-1 text-xs text-gray-400">
+          꺼두면 그 반에 새 글이 올라오거나 수정되어도, &quot;알림 받기&quot;를 눌러둔 사람들에게 푸시 알림이
+          나가지 않습니다. 글 자체는 평소처럼 그대로 등록/수정됩니다.
+        </p>
+        <ul className="mt-3 divide-y divide-gray-100">
+          {classRooms.map((c) => (
+            <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
+              <span className="text-sm text-gray-700">{c.name}</span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={c.pushNotifyEnabled}
+                  disabled={busy}
+                  onClick={() => {
+                    if (needPassword()) return;
+                    const next = !c.pushNotifyEnabled;
+                    run(
+                      () => setClassPushNotifyEnabled(password, c.id, next),
+                      () =>
+                        setClassRooms((prev) =>
+                          prev.map((r) => (r.id === c.id ? { ...r, pushNotifyEnabled: next } : r))
+                        )
+                    );
+                  }}
+                  className={`relative h-6 w-11 flex-none rounded-full transition disabled:opacity-50 ${
+                    c.pushNotifyEnabled ? "bg-blue-600" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${
+                      c.pushNotifyEnabled ? "left-5" : "left-0.5"
+                    }`}
+                  />
+                </button>
+                <span
+                  className={`w-10 flex-none text-xs font-medium ${
+                    c.pushNotifyEnabled ? "text-blue-600" : "text-gray-500"
+                  }`}
+                >
+                  {c.pushNotifyEnabled ? "켜짐" : "꺼짐"}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white p-5">
