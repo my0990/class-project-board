@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { getNeonUsage, getVercelUsage } from "@/app/admin/actions";
+import { getNeonUsage, getVercelUsage, getVercelSpendSnapshot } from "@/app/admin/actions";
+import type { VercelSpendSnapshot } from "@/app/admin/actions";
 import type { NeonUsage } from "@/lib/neonUsage";
 import type { VercelUsage } from "@/lib/vercelUsage";
 
@@ -48,6 +49,14 @@ function formatDate(iso: string): string {
   }
 }
 
+function formatDateTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("ko-KR");
+  } catch {
+    return iso;
+  }
+}
+
 export default function UsageDashboard() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -60,6 +69,10 @@ export default function UsageDashboard() {
   const [vercelError, setVercelError] = useState<string | null>(null);
   const [vercelUnavailable, setVercelUnavailable] = useState<string | null>(null);
 
+  const [vercelSnapshot, setVercelSnapshot] = useState<VercelSpendSnapshot | null>(null);
+  const [vercelSnapshotError, setVercelSnapshotError] = useState<string | null>(null);
+  const [vercelSnapshotChecked, setVercelSnapshotChecked] = useState(false);
+
   async function handleFetch() {
     if (!password) {
       setFormError("관리자 비밀번호를 입력해주세요.");
@@ -68,7 +81,11 @@ export default function UsageDashboard() {
     setBusy(true);
     setFormError(null);
     try {
-      const [neonResult, vercelResult] = await Promise.all([getNeonUsage(password), getVercelUsage(password)]);
+      const [neonResult, vercelResult, vercelSnapshotResult] = await Promise.all([
+        getNeonUsage(password),
+        getVercelUsage(password),
+        getVercelSpendSnapshot(password),
+      ]);
 
       if ("error" in neonResult) {
         setNeonError(neonResult.error);
@@ -90,6 +107,15 @@ export default function UsageDashboard() {
         setVercelError(null);
         setVercelUnavailable(null);
         setVercel(vercelResult.data);
+      }
+
+      setVercelSnapshotChecked(true);
+      if ("error" in vercelSnapshotResult) {
+        setVercelSnapshotError(vercelSnapshotResult.error);
+        setVercelSnapshot(null);
+      } else {
+        setVercelSnapshotError(null);
+        setVercelSnapshot(vercelSnapshotResult.data);
       }
     } catch {
       setFormError("조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
@@ -160,12 +186,41 @@ export default function UsageDashboard() {
         </section>
       )}
 
-      {(vercel || vercelError || vercelUnavailable) && (
+      {(vercel || vercelError || vercelUnavailable || vercelSnapshotChecked) && (
         <section className="rounded-xl border border-gray-200 bg-white p-5">
           <h2 className="font-semibold">Vercel (호스팅)</h2>
-          {vercelError && <p className="mt-2 text-sm text-red-500">{vercelError}</p>}
-          {vercelUnavailable && (
+
+          {vercelSnapshotError && <p className="mt-2 text-sm text-red-500">{vercelSnapshotError}</p>}
+
+          {vercelSnapshotChecked && vercelSnapshot && (
+            <div className="mt-3">
+              <UsageMeter
+                label="이번 결제 주기 지출액"
+                value={vercelSnapshot.currentUsd}
+                limit={vercelSnapshot.budgetUsd}
+                unit="USD"
+                decimals={0}
+              />
+              <p className="mt-2 text-xs text-gray-400">
+                마지막 업데이트: {formatDateTime(vercelSnapshot.updatedAt)} (예산의 {vercelSnapshot.thresholdPercent}%
+                도달 시점 기준)
+              </p>
+              <p className="mt-1 text-xs text-gray-400">
+                이 수치는 실시간이 아니라, Vercel이 예산의 50%/75%/100%에 새로 도달할 때마다 알려주는 값이에요.
+              </p>
+            </div>
+          )}
+
+          {vercelSnapshotChecked && !vercelSnapshot && !vercelSnapshotError && (
             <p className="mt-2 text-sm text-gray-500">
+              아직 Vercel로부터 받은 사용량 정보가 없습니다. Vercel 대시보드에서 Spend Management(지출 관리) 기능을
+              켜고 예산과 웹훅 주소를 설정하면, 예산의 50%/75%/100%에 도달할 때 이 화면에 자동으로 표시됩니다.
+            </p>
+          )}
+
+          {vercelError && <p className="mt-3 text-sm text-red-500">{vercelError}</p>}
+          {vercelUnavailable && (
+            <p className="mt-3 text-sm text-gray-400">
               {vercelUnavailable}{" "}
               <a
                 href="https://vercel.com/dashboard"
@@ -179,7 +234,7 @@ export default function UsageDashboard() {
           )}
           {vercel && (
             <>
-              <p className="mt-0.5 text-xs text-gray-400">
+              <p className="mt-3 text-xs text-gray-400">
                 이번 달: {formatDate(vercel.periodStart)} ~ {formatDate(vercel.periodEnd)} · 예상 청구 금액 $
                 {vercel.estimatedCostUsd.toFixed(2)}
               </p>
@@ -197,10 +252,6 @@ export default function UsageDashboard() {
                   ))}
                 </ul>
               )}
-              <p className="mt-3 text-xs text-gray-400">
-                Vercel은 Neon처럼 항목별 무료 한도를 API로 알려주지 않아서, 이번 달 실제 사용량만 그대로
-                보여드려요. 정확한 무료 한도는 Vercel 요금제 페이지를 참고해주세요.
-              </p>
             </>
           )}
         </section>

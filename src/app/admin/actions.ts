@@ -253,3 +253,38 @@ export async function getVercelUsage(password: string): Promise<VercelUsageResul
   if (err) return { error: err };
   return fetchVercelUsage();
 }
+
+// Vercel "Spend Management" 웹훅이 저장해 둔 가장 최근 예산/사용량 스냅샷을 읽어옵니다.
+// (Vercel의 실시간 사용량 API는 이 계정 등급에서 지원되지 않아서, 대신 이 방식을 씁니다.)
+export type VercelSpendSnapshot = {
+  budgetUsd: number;
+  currentUsd: number;
+  thresholdPercent: number;
+  updatedAt: string;
+};
+
+export async function getVercelSpendSnapshot(
+  password: string
+): Promise<{ data: VercelSpendSnapshot | null } | { error: string }> {
+  const err = await adminError(password);
+  if (err) return { error: err };
+
+  const config = await getConfig();
+  if (
+    config.vercelSpendBudgetUsd == null ||
+    config.vercelSpendCurrentUsd == null ||
+    config.vercelSpendThresholdPct == null ||
+    config.vercelSpendUpdatedAt == null
+  ) {
+    return { data: null };
+  }
+
+  return {
+    data: {
+      budgetUsd: config.vercelSpendBudgetUsd,
+      currentUsd: config.vercelSpendCurrentUsd,
+      thresholdPercent: config.vercelSpendThresholdPct,
+      updatedAt: config.vercelSpendUpdatedAt.toISOString(),
+    },
+  };
+}
