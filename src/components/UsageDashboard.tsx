@@ -58,6 +58,7 @@ export default function UsageDashboard() {
 
   const [vercel, setVercel] = useState<VercelUsage | null>(null);
   const [vercelError, setVercelError] = useState<string | null>(null);
+  const [vercelUnavailable, setVercelUnavailable] = useState<string | null>(null);
 
   async function handleFetch() {
     if (!password) {
@@ -77,11 +78,17 @@ export default function UsageDashboard() {
         setNeon(neonResult.data);
       }
 
-      if ("error" in vercelResult) {
+      if ("unavailable" in vercelResult) {
+        setVercelUnavailable(vercelResult.unavailable);
+        setVercelError(null);
+        setVercel(null);
+      } else if ("error" in vercelResult) {
         setVercelError(vercelResult.error);
+        setVercelUnavailable(null);
         setVercel(null);
       } else {
         setVercelError(null);
+        setVercelUnavailable(null);
         setVercel(vercelResult.data);
       }
     } catch {
@@ -153,10 +160,23 @@ export default function UsageDashboard() {
         </section>
       )}
 
-      {(vercel || vercelError) && (
+      {(vercel || vercelError || vercelUnavailable) && (
         <section className="rounded-xl border border-gray-200 bg-white p-5">
           <h2 className="font-semibold">Vercel (호스팅)</h2>
           {vercelError && <p className="mt-2 text-sm text-red-500">{vercelError}</p>}
+          {vercelUnavailable && (
+            <p className="mt-2 text-sm text-gray-500">
+              {vercelUnavailable}{" "}
+              <a
+                href="https://vercel.com/dashboard"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-blue-600 hover:underline"
+              >
+                Vercel 대시보드 열기 →
+              </a>
+            </p>
+          )}
           {vercel && (
             <>
               <p className="mt-0.5 text-xs text-gray-400">

@@ -23,7 +23,7 @@ export type VercelUsage = {
   periodEnd: string;
 };
 
-export type VercelUsageResult = { data: VercelUsage } | { error: string };
+export type VercelUsageResult = { data: VercelUsage } | { error: string } | { unavailable: string };
 
 type FocusCharge = {
   ServiceName?: string;
@@ -68,6 +68,20 @@ export async function getVercelUsage(): Promise<VercelUsageResult> {
         error:
           "이 토큰으로는 사용량을 조회할 권한이 없습니다. 이 프로젝트가 Team 소속이면 VERCEL_TEAM_ID도 함께 설정해주세요.",
       };
+    }
+    if (res.status === 404) {
+      const body = await res.text().catch(() => "");
+      if (body.includes("Plan not found")) {
+        // 이 API(FOCUS 형식 청구 데이터)는 Vercel이 문서에 명확히 밝히지 않았지만,
+        // Enterprise 등급의 정식 계약이 있는 팀에만 데이터가 있는 것으로 확인되었습니다.
+        // Hobby/Pro 팀은 VERCEL_TEAM_ID를 올바르게 설정해도 "Plan not found"가 납니다 -
+        // 설정 문제가 아니라 Vercel이 이 등급에는 API를 열어주지 않는 것입니다.
+        return {
+          unavailable:
+            "Vercel 사용량은 이 계정 등급에서는 API로 제공되지 않습니다 (Vercel Enterprise 등급 전용 기능으로 보입니다). Vercel 대시보드의 Usage 메뉴에서 직접 확인해주세요.",
+        };
+      }
+      return { error: `Vercel API에서 데이터를 찾을 수 없습니다 (status 404). ${body.slice(0, 200)}` };
     }
     return { error: `Vercel API 오류가 발생했습니다 (status ${res.status}).` };
   }
