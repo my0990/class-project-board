@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { getNeonUsage, getVercelUsage, getVercelSpendSnapshot } from "@/app/admin/actions";
+import { getNeonUsage, getVercelUsage, getVercelSpendSnapshot, getR2Usage } from "@/app/admin/actions";
 import type { VercelSpendSnapshot } from "@/app/admin/actions";
 import type { NeonUsage } from "@/lib/neonUsage";
 import type { VercelUsage } from "@/lib/vercelUsage";
+import type { R2Usage } from "@/lib/r2Usage";
 
 type MeterProps = {
   label: string;
@@ -73,6 +74,9 @@ export default function UsageDashboard() {
   const [vercelSnapshotError, setVercelSnapshotError] = useState<string | null>(null);
   const [vercelSnapshotChecked, setVercelSnapshotChecked] = useState(false);
 
+  const [r2, setR2] = useState<R2Usage | null>(null);
+  const [r2Error, setR2Error] = useState<string | null>(null);
+
   async function handleFetch() {
     if (!password) {
       setFormError("관리자 비밀번호를 입력해주세요.");
@@ -81,10 +85,11 @@ export default function UsageDashboard() {
     setBusy(true);
     setFormError(null);
     try {
-      const [neonResult, vercelResult, vercelSnapshotResult] = await Promise.all([
+      const [neonResult, vercelResult, vercelSnapshotResult, r2Result] = await Promise.all([
         getNeonUsage(password),
         getVercelUsage(password),
         getVercelSpendSnapshot(password),
+        getR2Usage(password),
       ]);
 
       if ("error" in neonResult) {
@@ -116,6 +121,14 @@ export default function UsageDashboard() {
       } else {
         setVercelSnapshotError(null);
         setVercelSnapshot(vercelSnapshotResult.data);
+      }
+
+      if ("error" in r2Result) {
+        setR2Error(r2Result.error);
+        setR2(null);
+      } else {
+        setR2Error(null);
+        setR2(r2Result.data);
       }
     } catch {
       setFormError("조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
@@ -257,7 +270,37 @@ export default function UsageDashboard() {
         </section>
       )}
 
-      <p className="text-xs text-gray-400">Cloudflare R2 사용량은 다음 단계에서 추가될 예정입니다.</p>
+      {(r2 || r2Error) && (
+        <section className="rounded-xl border border-gray-200 bg-white p-5">
+          <h2 className="font-semibold">Cloudflare R2 (사진/동영상 저장소)</h2>
+          {r2Error && <p className="mt-2 text-sm text-red-500">{r2Error}</p>}
+          {r2 && (
+            <>
+              <p className="mt-0.5 text-xs text-gray-400">
+                이번 결제 주기: {formatDate(r2.periodStart)} ~ {formatDate(r2.periodEnd)} · 파일 개수:{" "}
+                {r2.objectCount.toLocaleString()}개
+              </p>
+              <div className="mt-4 space-y-4">
+                <UsageMeter label="저장 용량" value={r2.storageGb} limit={r2.storageGbLimit} unit="GB" decimals={2} />
+                <UsageMeter
+                  label="Class A 작업 (업로드 등)"
+                  value={r2.classARequests}
+                  limit={r2.classARequestsLimit}
+                  unit="건"
+                  decimals={0}
+                />
+                <UsageMeter
+                  label="Class B 작업 (다운로드 등)"
+                  value={r2.classBRequests}
+                  limit={r2.classBRequestsLimit}
+                  unit="건"
+                  decimals={0}
+                />
+              </div>
+            </>
+          )}
+        </section>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { verifyPassword } from "@/lib/password";
 import { getConfig } from "@/lib/config";
 import { getNeonUsage as fetchNeonUsage, type NeonUsageResult } from "@/lib/neonUsage";
 import { getVercelUsage as fetchVercelUsage, type VercelUsageResult } from "@/lib/vercelUsage";
+import { getR2Usage as fetchR2Usage, type R2UsageResult } from "@/lib/r2Usage";
 
 type Result = { success: true } | { error: string };
 
@@ -252,6 +253,12 @@ export async function getVercelUsage(password: string): Promise<VercelUsageResul
   const err = await adminError(password);
   if (err) return { error: err };
   return fetchVercelUsage();
+}
+
+export async function getR2Usage(password: string): Promise<R2UsageResult> {
+  const err = await adminError(password);
+  if (err) return { error: err };
+  return fetchR2Usage();
 }
 
 // Vercel "Spend Management" 웹훅이 저장해 둔 가장 최근 예산/사용량 스냅샷을 읽어옵니다.
