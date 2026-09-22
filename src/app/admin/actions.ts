@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 import { getConfig } from "@/lib/config";
 import { getNeonUsage as fetchNeonUsage, type NeonUsageResult } from "@/lib/neonUsage";
+import { getVercelUsage as fetchVercelUsage, type VercelUsageResult } from "@/lib/vercelUsage";
 
 type Result = { success: true } | { error: string };
 
@@ -29,6 +30,19 @@ export async function updateProjectTitle(password: string, title: string): Promi
   await prisma.config.update({ where: { id: config.id }, data: { projectTitle: title.trim() } });
 
   refresh();
+  return { success: true };
+}
+
+// 다음 production 배포에서 구독자 전체에게 업데이트 알림을 보낼지 켜고 끕니다.
+// 알림은 한 번 나가면 자동으로 다시 꺼지므로, 정말 알리고 싶은 배포 직전에만 켜면 됩니다.
+export async function setDeployNotifyEnabled(password: string, enabled: boolean): Promise<Result> {
+  const err = await adminError(password);
+  if (err) return { error: err };
+
+  const config = await getConfig();
+  await prisma.config.update({ where: { id: config.id }, data: { deployNotifyEnabled: enabled } });
+
+  revalidatePath("/admin");
   return { success: true };
 }
 
@@ -223,7 +237,7 @@ export async function moveStage(password: string, stageId: string, direction: "u
 }
 
 // ------------------------------------------------------------------
-// 사용량 대시보드 (Neon)
+// 사용량 대시보드 (Neon / Vercel)
 // ------------------------------------------------------------------
 
 // 사용량 정보는 관리자 비밀번호로만 조회할 수 있게 해서, 아무나 인프라 사용 현황을
@@ -232,4 +246,10 @@ export async function getNeonUsage(password: string): Promise<NeonUsageResult> {
   const err = await adminError(password);
   if (err) return { error: err };
   return fetchNeonUsage();
+}
+
+export async function getVercelUsage(password: string): Promise<VercelUsageResult> {
+  const err = await adminError(password);
+  if (err) return { error: err };
+  return fetchVercelUsage();
 }

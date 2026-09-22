@@ -19,5 +19,11 @@ export default async function AdminContent() {
     }),
   ]);
 
-  return <AdminPanel initialTitle={config.projectTitle} initialUois={uois} />;
+  return (
+    <AdminPanel
+      initialTitle={config.projectTitle}
+      initialUois={uois}
+      initialDeployNotifyEnabled={config.deployNotifyEnabled}
+    />
+  );
 }

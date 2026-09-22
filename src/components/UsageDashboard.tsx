@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { getNeonUsage } from "@/app/admin/actions";
+import { getNeonUsage, getVercelUsage } from "@/app/admin/actions";
 import type { NeonUsage } from "@/lib/neonUsage";
+import type { VercelUsage } from "@/lib/vercelUsage";
 
 type MeterProps = {
   label: string;
@@ -50,26 +51,41 @@ function formatDate(iso: string): string {
 export default function UsageDashboard() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
   const [neon, setNeon] = useState<NeonUsage | null>(null);
+  const [neonError, setNeonError] = useState<string | null>(null);
+
+  const [vercel, setVercel] = useState<VercelUsage | null>(null);
+  const [vercelError, setVercelError] = useState<string | null>(null);
 
   async function handleFetch() {
     if (!password) {
-      setError("관리자 비밀번호를 입력해주세요.");
+      setFormError("관리자 비밀번호를 입력해주세요.");
       return;
     }
     setBusy(true);
-    setError(null);
+    setFormError(null);
     try {
-      const result = await getNeonUsage(password);
-      if ("error" in result) {
-        setError(result.error);
+      const [neonResult, vercelResult] = await Promise.all([getNeonUsage(password), getVercelUsage(password)]);
+
+      if ("error" in neonResult) {
+        setNeonError(neonResult.error);
         setNeon(null);
       } else {
-        setNeon(result.data);
+        setNeonError(null);
+        setNeon(neonResult.data);
+      }
+
+      if ("error" in vercelResult) {
+        setVercelError(vercelResult.error);
+        setVercel(null);
+      } else {
+        setVercelError(null);
+        setVercel(vercelResult.data);
       }
     } catch {
-      setError("조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      setFormError("조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setBusy(false);
     }
@@ -102,26 +118,75 @@ export default function UsageDashboard() {
             {busy ? "조회 중..." : "조회"}
           </button>
         </div>
-        {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+        {formError && <p className="mt-2 text-sm text-red-500">{formError}</p>}
       </section>
 
-      {neon && (
+      {(neon || neonError) && (
         <section className="rounded-xl border border-gray-200 bg-white p-5">
           <h2 className="font-semibold">Neon (데이터베이스)</h2>
-          {neon.periodStart && neon.periodEnd && (
-            <p className="mt-0.5 text-xs text-gray-400">
-              이번 결제 주기: {formatDate(neon.periodStart)} ~ {formatDate(neon.periodEnd)}
-            </p>
+          {neonError && <p className="mt-2 text-sm text-red-500">{neonError}</p>}
+          {neon && (
+            <>
+              {neon.periodStart && neon.periodEnd && (
+                <p className="mt-0.5 text-xs text-gray-400">
+                  이번 결제 주기: {formatDate(neon.periodStart)} ~ {formatDate(neon.periodEnd)}
+                </p>
+              )}
+              <div className="mt-4 space-y-4">
+                <UsageMeter
+                  label="Compute 사용 시간"
+                  value={neon.computeHours}
+                  limit={neon.computeHoursLimit}
+                  unit="시간"
+                />
+                <UsageMeter label="저장 용량" value={neon.storageGb} limit={neon.storageGbLimit} unit="GB" decimals={2} />
+                <UsageMeter
+                  label="데이터 전송량"
+                  value={neon.transferGb}
+                  limit={neon.transferGbLimit}
+                  unit="GB"
+                  decimals={2}
+                />
+              </div>
+            </>
           )}
-          <div className="mt-4 space-y-4">
-            <UsageMeter label="Compute 사용 시간" value={neon.computeHours} limit={neon.computeHoursLimit} unit="시간" />
-            <UsageMeter label="저장 용량" value={neon.storageGb} limit={neon.storageGbLimit} unit="GB" decimals={2} />
-            <UsageMeter label="데이터 전송량" value={neon.transferGb} limit={neon.transferGbLimit} unit="GB" decimals={2} />
-          </div>
         </section>
       )}
 
-      <p className="text-xs text-gray-400">Vercel · Cloudflare R2 사용량은 다음 단계에서 추가될 예정입니다.</p>
+      {(vercel || vercelError) && (
+        <section className="rounded-xl border border-gray-200 bg-white p-5">
+          <h2 className="font-semibold">Vercel (호스팅)</h2>
+          {vercelError && <p className="mt-2 text-sm text-red-500">{vercelError}</p>}
+          {vercel && (
+            <>
+              <p className="mt-0.5 text-xs text-gray-400">
+                이번 달: {formatDate(vercel.periodStart)} ~ {formatDate(vercel.periodEnd)} · 예상 청구 금액 $
+                {vercel.estimatedCostUsd.toFixed(2)}
+              </p>
+              {vercel.items.length === 0 ? (
+                <p className="mt-3 text-xs text-gray-400">이번 달 사용 내역이 아직 없습니다.</p>
+              ) : (
+                <ul className="mt-3 divide-y divide-gray-100 text-sm">
+                  {vercel.items.map((item) => (
+                    <li key={`${item.serviceName}-${item.unit}`} className="flex items-center justify-between py-1.5">
+                      <span className="text-gray-600">{item.serviceName}</span>
+                      <span className="font-medium text-gray-800">
+                        {item.quantity.toLocaleString(undefined, { maximumFractionDigits: 2 })} {item.unit}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-3 text-xs text-gray-400">
+                Vercel은 Neon처럼 항목별 무료 한도를 API로 알려주지 않아서, 이번 달 실제 사용량만 그대로
+                보여드려요. 정확한 무료 한도는 Vercel 요금제 페이지를 참고해주세요.
+              </p>
+            </>
+          )}
+        </section>
+      )}
+
+      <p className="text-xs text-gray-400">Cloudflare R2 사용량은 다음 단계에서 추가될 예정입니다.</p>
     </div>
   );
 }

@@ -12,10 +12,14 @@ datasource db {
 
 // 전체 프로젝트 공통 설정 (딱 1개 row만 존재)
 model Config {
-  id                String   @id @default(cuid())
-  projectTitle      String
-  adminPasswordHash String
-  updatedAt         DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  projectTitle         String
+  adminPasswordHash    String
+  // 켜져 있을 때만 다음 배포에서 구독자 전체에게 "업데이트 안내" 푸시 알림을 보냅니다.
+  // 알림이 나가면(성공/실패 상관없이) 다시 자동으로 꺼집니다 - 매 배포마다 깜빡하고
+  // 계속 알림이 나가는 걸 막기 위해서입니다.
+  deployNotifyEnabled  Boolean  @default(false)
+  updatedAt            DateTime @updatedAt
 }
 
 // 탐구 단원 (UOI). 예: uoi1, uoi2, uoi3

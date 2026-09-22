@@ -15,6 +15,7 @@ import {
   renameLoi,
   renameStage,
   renameUoi,
+  setDeployNotifyEnabled,
   updateProjectTitle,
 } from "@/app/admin/actions";
 
@@ -27,13 +28,16 @@ type ActionResult = { success: true } | { error: string };
 export default function AdminPanel({
   initialTitle,
   initialUois,
+  initialDeployNotifyEnabled,
 }: {
   initialTitle: string;
   initialUois: Uoi[];
+  initialDeployNotifyEnabled: boolean;
 }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [title, setTitle] = useState(initialTitle);
+  const [deployNotifyEnabled, setDeployNotifyEnabledState] = useState(initialDeployNotifyEnabled);
 
   const [uoiRenaming, setUoiRenaming] = useState<Record<string, string>>({});
   const [loiRenaming, setLoiRenaming] = useState<Record<string, string>>({});
@@ -114,6 +118,43 @@ export default function AdminPanel({
           >
             저장
           </button>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-5">
+        <h2 className="font-semibold">배포 업데이트 알림</h2>
+        <p className="mt-1 text-xs text-gray-400">
+          켜두면 다음 배포(git push 후 자동 배포) 딱 한 번, &quot;알림 받기&quot;를 눌러둔 모든 사람에게 이번
+          커밋 메시지가 업데이트 알림으로 나갑니다. 알림이 나가면 자동으로 다시 꺼지므로, 정말 알리고 싶은
+          업데이트가 있을 때만 배포 전에 켜주세요.
+        </p>
+        <div className="mt-3 flex items-center gap-3">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={deployNotifyEnabled}
+            disabled={busy}
+            onClick={() => {
+              if (needPassword()) return;
+              const next = !deployNotifyEnabled;
+              run(
+                () => setDeployNotifyEnabled(password, next),
+                () => setDeployNotifyEnabledState(next)
+              );
+            }}
+            className={`relative h-6 w-11 flex-none rounded-full transition disabled:opacity-50 ${
+              deployNotifyEnabled ? "bg-blue-600" : "bg-gray-300"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${
+                deployNotifyEnabled ? "left-5" : "left-0.5"
+              }`}
+            />
+          </button>
+          <span className={`text-sm font-medium ${deployNotifyEnabled ? "text-blue-600" : "text-gray-500"}`}>
+            {deployNotifyEnabled ? "다음 배포에서 알림 나감" : "꺼짐"}
+          </span>
         </div>
       </section>
 
