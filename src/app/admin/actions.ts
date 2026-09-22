@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 import { getConfig } from "@/lib/config";
+import { getNeonUsage as fetchNeonUsage, type NeonUsageResult } from "@/lib/neonUsage";
 
 type Result = { success: true } | { error: string };
 
@@ -219,4 +220,16 @@ export async function moveStage(password: string, stageId: string, direction: "u
 
   refresh();
   return { success: true };
+}
+
+// ------------------------------------------------------------------
+// 사용량 대시보드 (Neon)
+// ------------------------------------------------------------------
+
+// 사용량 정보는 관리자 비밀번호로만 조회할 수 있게 해서, 아무나 인프라 사용 현황을
+// 볼 수 없도록 합니다.
+export async function getNeonUsage(password: string): Promise<NeonUsageResult> {
+  const err = await adminError(password);
+  if (err) return { error: err };
+  return fetchNeonUsage();
 }
