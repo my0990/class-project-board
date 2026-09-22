@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getConfig } from "@/lib/config";
-import ClassCard from "@/components/ClassCard";
+import HomeClassList from "@/components/HomeClassList";
 
 // 홈 화면에서 실제 DB 조회가 필요한 부분만 따로 분리한 컴포넌트입니다.
 // page.tsx에서 <Suspense>로 감싸서, DB 조회가 오래 걸려도(콜드스타트 등)
@@ -25,6 +25,25 @@ export default async function HomeContent() {
   const doneSet = new Set(posts.map((p) => `${p.classRoomId}:${p.stageId}`));
 
   const hasAnyStage = uois.some((u) => u.lois.some((l) => l.stages.length > 0));
+
+  const classItems = classes.map((c) => ({
+    slug: c.slug,
+    name: c.name,
+    teacherName: c.teacherName,
+    uois: uois.map((u) => ({
+      id: u.id,
+      name: u.name,
+      lois: u.lois.map((l) => ({
+        id: l.id,
+        name: l.name,
+        stages: l.stages.map((s) => ({
+          id: s.id,
+          name: s.name,
+          done: doneSet.has(`${c.id}:${s.id}`),
+        })),
+      })),
+    })),
+  }));
 
   return (
     <>
@@ -53,29 +72,7 @@ export default async function HomeContent() {
           아직 등록된 탐구 단원(UOI)/탐구 주제(LOI)/수업 단계가 없습니다. 관리자 페이지에서 만들어주세요.
         </p>
       ) : (
-        <div className="mt-8 grid grid-cols-1 gap-4">
-          {classes.map((c) => (
-            <ClassCard
-              key={c.id}
-              slug={c.slug}
-              name={c.name}
-              teacherName={c.teacherName}
-              uois={uois.map((u) => ({
-                id: u.id,
-                name: u.name,
-                lois: u.lois.map((l) => ({
-                  id: l.id,
-                  name: l.name,
-                  stages: l.stages.map((s) => ({
-                    id: s.id,
-                    name: s.name,
-                    done: doneSet.has(`${c.id}:${s.id}`),
-                  })),
-                })),
-              }))}
-            />
-          ))}
-        </div>
+        <HomeClassList classes={classItems} />
       )}
     </>
   );

@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-type StageProgress = { id: string; name: string; done: boolean };
-type LoiProgress = { id: string; name: string; stages: StageProgress[] };
-type UoiProgress = { id: string; name: string; lois: LoiProgress[] };
+export type StageProgress = { id: string; name: string; done: boolean };
+export type LoiProgress = { id: string; name: string; stages: StageProgress[] };
+export type UoiProgress = { id: string; name: string; lois: LoiProgress[] };
 
 type Props = {
   slug: string;
