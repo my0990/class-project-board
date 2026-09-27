@@ -225,11 +225,105 @@ export default function AdminPanel({
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white p-5">
+        <h2 className="font-semibold">참고 자료 관리</h2>
+        <p className="mt-1 text-xs text-gray-400">
+          UOI 전체 문서, LOI별 캔바·패들렛 자료 주소를 한 화면에서 모아 등록합니다. 여기서 저장하면 홈 화면
+          &quot;참고 자료&quot;에 자동으로 나타납니다.
+        </p>
+
+        <div className="mt-4 space-y-4">
+          {initialUois.map((uoi) => (
+            <div key={uoi.id} className="rounded-lg border border-blue-100 bg-blue-50/40 p-3">
+              <span className="inline-block rounded-full bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white">
+                {uoi.name}
+              </span>
+
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="flex-none text-xs font-medium text-gray-500">📄 통합문서</span>
+                <input
+                  value={uoiDocUrlEdits[uoi.id] ?? uoi.docUrl ?? ""}
+                  onChange={(e) => setUoiDocUrlEdits((r) => ({ ...r, [uoi.id]: e.target.value }))}
+                  placeholder="구글 문서 등 주소 (https://...)"
+                  className="min-w-[10rem] flex-1 rounded-lg border border-gray-300 bg-white p-2 text-sm focus:border-blue-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    if (needPassword()) return;
+                    run(() => setUoiDocUrl(password, uoi.id, uoiDocUrlEdits[uoi.id] ?? uoi.docUrl ?? ""));
+                  }}
+                  className="flex h-8 flex-none items-center justify-center rounded-md border border-gray-200 bg-white px-2.5 text-xs hover:border-blue-400"
+                >
+                  저장
+                </button>
+              </div>
+
+              {uoi.lois.length > 0 && (
+                <div className="mt-3 space-y-2 border-l-2 border-blue-200 pl-3 sm:pl-4">
+                  {uoi.lois.map((loi) => (
+                    <div key={loi.id} className="rounded-lg border border-gray-200 bg-white p-2.5">
+                      <span className="text-xs font-semibold text-gray-600">{loi.name}</span>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <span className="flex-none text-xs font-medium text-gray-500">🎨 캔바</span>
+                        <input
+                          value={loiLinkEdits[loi.id]?.canvaUrl ?? loi.canvaUrl ?? ""}
+                          onChange={(e) =>
+                            setLoiLinkEdits((r) => ({
+                              ...r,
+                              [loi.id]: {
+                                canvaUrl: e.target.value,
+                                padletUrl: r[loi.id]?.padletUrl ?? loi.padletUrl ?? "",
+                              },
+                            }))
+                          }
+                          placeholder="캔바 주소 (https://...)"
+                          className="min-w-[8rem] flex-1 rounded-lg border border-gray-300 p-2 text-sm focus:border-blue-500 focus:outline-none"
+                        />
+                        <span className="flex-none text-xs font-medium text-gray-500">📌 패들렛</span>
+                        <input
+                          value={loiLinkEdits[loi.id]?.padletUrl ?? loi.padletUrl ?? ""}
+                          onChange={(e) =>
+                            setLoiLinkEdits((r) => ({
+                              ...r,
+                              [loi.id]: {
+                                canvaUrl: r[loi.id]?.canvaUrl ?? loi.canvaUrl ?? "",
+                                padletUrl: e.target.value,
+                              },
+                            }))
+                          }
+                          placeholder="패들렛 주소 (https://...)"
+                          className="min-w-[8rem] flex-1 rounded-lg border border-gray-300 p-2 text-sm focus:border-blue-500 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            if (needPassword()) return;
+                            const edit = loiLinkEdits[loi.id] ?? {
+                              canvaUrl: loi.canvaUrl ?? "",
+                              padletUrl: loi.padletUrl ?? "",
+                            };
+                            run(() => setLoiResourceLinks(password, loi.id, edit.canvaUrl, edit.padletUrl));
+                          }}
+                          className="flex h-8 flex-none items-center justify-center rounded-md border border-gray-200 bg-white px-2.5 text-xs hover:border-blue-400"
+                        >
+                          저장
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-5">
         <h2 className="font-semibold">탐구 단원(UOI) · 탐구 주제(LOI) · 수업 단계</h2>
         <p className="mt-1 text-xs text-gray-400">
-          전체 학급이 공통으로 사용하는 구조입니다. UOI 안에 여러 LOI, LOI 안에 여러 단계를 둘 수 있어요. UOI
-          전체 문서, LOI의 캔바·패들렛 자료 주소도 여기서 등록하면 홈 화면 &quot;참고 자료&quot;에 자동으로
-          나타납니다.
+          전체 학급이 공통으로 사용하는 구조입니다. UOI 안에 여러 LOI, LOI 안에 여러 단계를 둘 수 있어요.
         </p>
 
         <div className="mt-4 space-y-5">
@@ -296,28 +390,6 @@ export default function AdminPanel({
                 </div>
               </div>
 
-              {/* UOI 전체 문서 링크 */}
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="flex-none text-xs font-medium text-gray-500">📄 문서 링크</span>
-                <input
-                  value={uoiDocUrlEdits[uoi.id] ?? uoi.docUrl ?? ""}
-                  onChange={(e) => setUoiDocUrlEdits((r) => ({ ...r, [uoi.id]: e.target.value }))}
-                  placeholder="구글 문서 등 주소 (https://...)"
-                  className="min-w-[10rem] flex-1 rounded-lg border border-gray-300 bg-white p-2 text-sm focus:border-blue-500 focus:outline-none"
-                />
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    if (needPassword()) return;
-                    run(() => setUoiDocUrl(password, uoi.id, uoiDocUrlEdits[uoi.id] ?? uoi.docUrl ?? ""));
-                  }}
-                  className="flex h-8 flex-none items-center justify-center rounded-md border border-gray-200 bg-white px-2.5 text-xs hover:border-blue-400"
-                >
-                  저장
-                </button>
-              </div>
-
               {/* LOI 목록 */}
               <div className="mt-3 space-y-3 border-l-2 border-blue-200 pl-3 sm:pl-4">
                 {uoi.lois.map((loi, li) => (
@@ -380,55 +452,6 @@ export default function AdminPanel({
                           삭제
                         </button>
                       </div>
-                    </div>
-
-                    {/* LOI 자료 링크 (캔바 / 패들렛) */}
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className="flex-none text-xs font-medium text-gray-500">🎨 캔바</span>
-                      <input
-                        value={loiLinkEdits[loi.id]?.canvaUrl ?? loi.canvaUrl ?? ""}
-                        onChange={(e) =>
-                          setLoiLinkEdits((r) => ({
-                            ...r,
-                            [loi.id]: {
-                              canvaUrl: e.target.value,
-                              padletUrl: r[loi.id]?.padletUrl ?? loi.padletUrl ?? "",
-                            },
-                          }))
-                        }
-                        placeholder="캔바 주소 (https://...)"
-                        className="min-w-[8rem] flex-1 rounded-lg border border-gray-300 p-2 text-sm focus:border-blue-500 focus:outline-none"
-                      />
-                      <span className="flex-none text-xs font-medium text-gray-500">📌 패들렛</span>
-                      <input
-                        value={loiLinkEdits[loi.id]?.padletUrl ?? loi.padletUrl ?? ""}
-                        onChange={(e) =>
-                          setLoiLinkEdits((r) => ({
-                            ...r,
-                            [loi.id]: {
-                              canvaUrl: r[loi.id]?.canvaUrl ?? loi.canvaUrl ?? "",
-                              padletUrl: e.target.value,
-                            },
-                          }))
-                        }
-                        placeholder="패들렛 주소 (https://...)"
-                        className="min-w-[8rem] flex-1 rounded-lg border border-gray-300 p-2 text-sm focus:border-blue-500 focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => {
-                          if (needPassword()) return;
-                          const edit = loiLinkEdits[loi.id] ?? {
-                            canvaUrl: loi.canvaUrl ?? "",
-                            padletUrl: loi.padletUrl ?? "",
-                          };
-                          run(() => setLoiResourceLinks(password, loi.id, edit.canvaUrl, edit.padletUrl));
-                        }}
-                        className="flex h-8 flex-none items-center justify-center rounded-md border border-gray-200 bg-white px-2.5 text-xs hover:border-blue-400"
-                      >
-                        저장
-                      </button>
                     </div>
 
                     {/* Stage 목록 */}
