@@ -8,7 +8,10 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// uoiName / loiName은 seed.ts에서 만든 이름("UOI1", "LOI1" 등)과 같아야 합니다.
+// uoiName / loiName은 실제 관리자 페이지에 등록된 이름과 정확히 같아야 합니다.
+// (UOI1 = "UOI1(우리 모두의 지구)", UOI2 = "UOI2(우리가 속한 공간과 시간)", UOI3 = "UOI3(우리는 누구인가)")
+// loiName을 못 찾으면(예: LOI1/LOI2/LOI3도 다른 이름으로 바뀌어 있으면) 아래 목록에서
+// loiName 값을 실제 이름으로 바꿔서 다시 실행해주세요.
 const UPDATES: {
   uoiName: string;
   loiName?: string;
@@ -17,20 +20,36 @@ const UPDATES: {
   padletUrl?: string;
 }[] = [
   {
-    uoiName: "UOI1",
+    uoiName: "UOI1(우리 모두의 지구)",
     docUrl:
       "https://docs.google.com/document/d/1VdcHJ70p7HPybuObyC0HUrmtA2Kpv7Jd/edit?usp=sharing&ouid=106695318357625822531&rtpof=true&sd=true",
   },
-  { uoiName: "UOI1", loiName: "LOI1", canvaUrl: "https://canva.link/2n4fjw0awnemqms" },
-  { uoiName: "UOI1", loiName: "LOI2", canvaUrl: "https://canva.link/l471nnittlow2d6" },
-  { uoiName: "UOI1", loiName: "LOI1", padletUrl: "https://padlet.com/cjjungangtap/loi1-6-vlxo44v7m7d93rya" },
-  { uoiName: "UOI1", loiName: "LOI2", padletUrl: "https://padlet.com/cjjungangtap/loi2-zunrljbc5280cvst" },
-  { uoiName: "UOI1", loiName: "LOI3", padletUrl: "https://padlet.com/cjjungangtap/loi3-118air9jv20a0exq" },
+  { uoiName: "UOI1(우리 모두의 지구)", loiName: "LOI1", canvaUrl: "https://canva.link/2n4fjw0awnemqms" },
+  { uoiName: "UOI1(우리 모두의 지구)", loiName: "LOI2", canvaUrl: "https://canva.link/l471nnittlow2d6" },
   {
-    uoiName: "UOI2",
+    uoiName: "UOI1(우리 모두의 지구)",
+    loiName: "LOI1",
+    padletUrl: "https://padlet.com/cjjungangtap/loi1-6-vlxo44v7m7d93rya",
+  },
+  {
+    uoiName: "UOI1(우리 모두의 지구)",
+    loiName: "LOI2",
+    padletUrl: "https://padlet.com/cjjungangtap/loi2-zunrljbc5280cvst",
+  },
+  {
+    uoiName: "UOI1(우리 모두의 지구)",
+    loiName: "LOI3",
+    padletUrl: "https://padlet.com/cjjungangtap/loi3-118air9jv20a0exq",
+  },
+  {
+    uoiName: "UOI2(우리가 속한 공간과 시간)",
     docUrl: "https://docs.google.com/document/d/1blTTEPFip2CIJ5GPK1S03Qaw4Q2gYXLY/edit",
   },
-  { uoiName: "UOI2", loiName: "LOI1", canvaUrl: "https://canva.link/sfx45eqdzugpwt0" },
+  {
+    uoiName: "UOI2(우리가 속한 공간과 시간)",
+    loiName: "LOI1",
+    canvaUrl: "https://canva.link/sfx45eqdzugpwt0",
+  },
 ];
 
 async function main() {

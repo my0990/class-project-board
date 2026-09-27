@@ -15,38 +15,29 @@ type Uoi = {
   lois: Loi[];
 };
 
-type Chip = { key: string; label: string; url: string };
-
 // 홈 화면에서 "참고 자료"를 접어두었다가 필요할 때만 펼쳐서 보는 영역입니다.
-// 전체를 한 곳에 모아두되, 그 안을 종류별(UOI 통합문서 / LOI별 캔바 / LOI별 패들렛)로 나눠서 보여줍니다.
+// UOI 탭 → 그 안의 LOI 탭 순서로 눌러가며 문서/캔바/패들렛 자료를 찾아볼 수 있습니다.
 export default function ResourceLinksSection({ uois }: { uois: Uoi[] }) {
   const [open, setOpen] = useState(false);
 
-  const docChips: Chip[] = uois
-    .filter((u) => u.docUrl)
-    .map((u) => ({ key: `${u.id}-doc`, label: u.name, url: u.docUrl as string }));
-
-  const canvaChips: Chip[] = uois.flatMap((u) =>
-    u.lois
-      .filter((l) => l.canvaUrl)
-      .map((l) => ({ key: `${l.id}-canva`, label: `${u.name} ${l.name}`, url: l.canvaUrl as string }))
+  const totalCount = uois.reduce(
+    (sum, u) =>
+      sum + (u.docUrl ? 1 : 0) + u.lois.reduce((s, l) => s + (l.canvaUrl ? 1 : 0) + (l.padletUrl ? 1 : 0), 0),
+    0
   );
 
-  const padletChips: Chip[] = uois.flatMap((u) =>
-    u.lois
-      .filter((l) => l.padletUrl)
-      .map((l) => ({ key: `${l.id}-padlet`, label: `${u.name} ${l.name}`, url: l.padletUrl as string }))
-  );
+  const [activeUoiId, setActiveUoiId] = useState<string | null>(uois[0]?.id ?? null);
+  const [activeLoiId, setActiveLoiId] = useState<string | null>(uois[0]?.lois[0]?.id ?? null);
 
-  const totalCount = docChips.length + canvaChips.length + padletChips.length;
+  if (totalCount === 0 || uois.length === 0) return null;
 
-  if (totalCount === 0) return null;
+  const activeUoi = uois.find((u) => u.id === activeUoiId) ?? uois[0];
+  const activeLoi = activeUoi.lois.find((l) => l.id === activeLoiId) ?? activeUoi.lois[0] ?? null;
 
-  const sections: { icon: string; title: string; chips: Chip[] }[] = [
-    { icon: "📄", title: "UOI 통합문서", chips: docChips },
-    { icon: "🎨", title: "LOI별 캔바", chips: canvaChips },
-    { icon: "📌", title: "LOI별 패들렛", chips: padletChips },
-  ].filter((s) => s.chips.length > 0);
+  function selectUoi(uoi: Uoi) {
+    setActiveUoiId(uoi.id);
+    setActiveLoiId(uoi.lois[0]?.id ?? null);
+  }
 
   return (
     <div className="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white">
@@ -62,28 +53,88 @@ export default function ResourceLinksSection({ uois }: { uois: Uoi[] }) {
         </span>
       </button>
       {open && (
-        <div className="flex flex-col gap-4 border-t border-gray-100 px-4 py-3">
-          {sections.map((section) => (
-            <div key={section.title}>
-              <p className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-gray-500">
-                <span aria-hidden="true">{section.icon}</span>
-                {section.title}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {section.chips.map((chip) => (
-                  <a
-                    key={chip.key}
-                    href={chip.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    {chip.label}
-                  </a>
-                ))}
-              </div>
-            </div>
-          ))}
+        <div className="border-t border-gray-100">
+          {/* UOI 탭 */}
+          <div className="flex flex-wrap gap-1 px-4 pt-3">
+            {uois.map((uoi) => (
+              <button
+                key={uoi.id}
+                type="button"
+                onClick={() => selectUoi(uoi)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                  activeUoi.id === uoi.id
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                }`}
+              >
+                {uoi.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="px-4 py-3">
+            {activeUoi.docUrl && (
+              <a
+                href={activeUoi.docUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <span aria-hidden="true">📄</span>
+                {activeUoi.name} 통합문서
+              </a>
+            )}
+
+            {activeUoi.lois.length > 0 && (
+              <>
+                {/* LOI 탭 */}
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {activeUoi.lois.map((loi) => (
+                    <button
+                      key={loi.id}
+                      type="button"
+                      onClick={() => setActiveLoiId(loi.id)}
+                      className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+                        activeLoi?.id === loi.id
+                          ? "bg-gray-700 text-white"
+                          : "border border-gray-200 text-gray-500 hover:border-gray-400"
+                      }`}
+                    >
+                      {loi.name}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  {activeLoi?.canvaUrl && (
+                    <a
+                      href={activeLoi.canvaUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <span aria-hidden="true">🎨</span>
+                      캔바
+                    </a>
+                  )}
+                  {activeLoi?.padletUrl && (
+                    <a
+                      href={activeLoi.padletUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <span aria-hidden="true">📌</span>
+                      패들렛
+                    </a>
+                  )}
+                  {!activeLoi?.canvaUrl && !activeLoi?.padletUrl && (
+                    <p className="text-xs text-gray-400">등록된 자료가 없습니다.</p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
