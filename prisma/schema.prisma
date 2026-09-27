@@ -105,6 +105,16 @@ model Attachment {
   createdAt DateTime @default(now())
 }
 
+// 홈 화면에 모아서 보여주는 참고 자료 링크 (구글문서/캔바/패들렛 등).
+// 모든 반이 공통으로 보는, 전체 학급 공통 자료입니다.
+model ResourceLink {
+  id        String   @id @default(cuid())
+  label     String
+  url       String
+  order     Int      @unique
+  createdAt DateTime @default(now())
+}
+
 // "새 글 알림 받기"를 누른 브라우저(기기)의 웹 푸시 구독 정보
 model PushSubscription {
   id        String   @id @default(cuid())

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getConfig } from "@/lib/config";
 import HomeClassList from "@/components/HomeClassList";
+import ResourceLinksSection from "@/components/ResourceLinksSection";
 
 // 홈 화면에서 실제 DB 조회가 필요한 부분만 따로 분리한 컴포넌트입니다.
 // page.tsx에서 <Suspense>로 감싸서, DB 조회가 오래 걸려도(콜드스타트 등)
@@ -8,7 +9,7 @@ import HomeClassList from "@/components/HomeClassList";
 export default async function HomeContent() {
   const config = await getConfig();
 
-  const [uois, classes, posts] = await Promise.all([
+  const [uois, classes, posts, resourceLinks] = await Promise.all([
     prisma.uoi.findMany({
       orderBy: { order: "asc" },
       include: {
@@ -20,6 +21,7 @@ export default async function HomeContent() {
     }),
     prisma.classRoom.findMany({ orderBy: { slug: "asc" } }),
     prisma.post.findMany({ select: { classRoomId: true, stageId: true } }),
+    prisma.resourceLink.findMany({ orderBy: { order: "asc" } }),
   ]);
 
   const doneSet = new Set(posts.map((p) => `${p.classRoomId}:${p.stageId}`));
@@ -61,6 +63,8 @@ export default async function HomeContent() {
           ))}
         </ol>
       )}
+
+      <ResourceLinksSection links={resourceLinks} />
 
       {classes.length === 0 ? (
         <p className="mt-10 text-gray-400">
