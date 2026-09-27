@@ -13,7 +13,39 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
-type Status = "checking" | "unsupported" | "idle" | "subscribed" | "denied" | "error" | "ios-need-install";
+type Status =
+  | "checking"
+  | "unsupported"
+  | "idle"
+  | "subscribed"
+  | "denied"
+  | "not-decided"
+  | "error"
+  | "ios-need-install";
+
+// "다음에"를 누르면 이 기간 동안은 알림 권유 팝업을 다시 띄우지 않습니다.
+const DISMISS_KEY = "pushPromptDismissedAt";
+const DISMISS_DAYS = 7;
+
+function wasDismissedRecently(): boolean {
+  try {
+    const raw = window.localStorage.getItem(DISMISS_KEY);
+    if (!raw) return false;
+    const dismissedAt = Number(raw);
+    if (!Number.isFinite(dismissedAt)) return false;
+    return Date.now() - dismissedAt < DISMISS_DAYS * 24 * 60 * 60 * 1000;
+  } catch {
+    return false;
+  }
+}
+
+function rememberDismissed() {
+  try {
+    window.localStorage.setItem(DISMISS_KEY, String(Date.now()));
+  } catch {
+    // localStorage를 못 쓰는 환경이면 그냥 이번 화면에서만 숨겨집니다.
+  }
+}
 
 // 아이폰/아이패드의 사파리(및 사파리 엔진을 쓰는 다른 브라우저들)는 "홈 화면에 추가"로
 // 설치한 앱(PWA) 형태로 열었을 때만 웹 푸시 알림을 지원합니다. 그냥 브라우저 탭으로
@@ -33,11 +65,32 @@ function isStandaloneMode(): boolean {
   return window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true;
 }
 
+// 브라우저별로 "알림 차단 풀기" 메뉴 위치가 달라서, 사용자가 헤매지 않도록
+// 브라우저를 구분해서 구체적인 경로를 안내합니다.
+function getBrowserSettingsHint(): string {
+  if (typeof navigator === "undefined") return "";
+  const ua = navigator.userAgent || "";
+  const isSafari = /safari/i.test(ua) && !/chrome|crios|android/i.test(ua);
+  const isEdge = /edg\//i.test(ua);
+  const isChrome = /chrome|crios/i.test(ua) && !isEdge;
+
+  if (isSafari) {
+    return '왼쪽 위 "Safari" 메뉴 → "설정" → "웹 사이트" 탭 → "알림"에서 이 사이트를 찾아 "허용"으로 바꿔주세요. (아이폰/아이패드는 "설정" 앱 → "Safari" → "웹 사이트 설정"에서 바꿀 수 있어요.)';
+  }
+  if (isEdge) {
+    return '주소창 왼쪽의 자물쇠(🔒) 아이콘을 눌러 "이 사이트에 대한 권한" → "알림"을 "허용"으로 바꿔주세요.';
+  }
+  if (isChrome) {
+    return '주소창 왼쪽의 자물쇠(🔒) 또는 정보 아이콘을 눌러 "권한" → "알림"을 "허용"으로 바꿔주세요.';
+  }
+  return "브라우저 주소창 근처의 자물쇠(🔒) 또는 사이트 정보 아이콘을 눌러 알림 권한을 허용으로 바꿔주세요.";
+}
+
 export default function PushSubscribeButton() {
   const [status, setStatus] = useState<Status>("checking");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  // "다음에"를 누르면 이번에 화면을 보는 동안만 팝업을 숨깁니다. 새로고침하거나
-  // 나중에 다시 방문하면(=컴포넌트가 새로 마운트되면) 허용하기 전까지 다시 뜹니다.
+  // "다음에"를 누르면 7일 동안 팝업을 숨깁니다. 7일이 지나거나 브라우저 저장공간이
+  // 지워지면(=쿠키/데이터 삭제) 허용하기 전까지 다시 뜹니다.
   const [popupDismissed, setPopupDismissed] = useState(false);
 
   useEffect(() => {
@@ -63,6 +116,7 @@ export default function PushSubscribeButton() {
           setStatus("denied");
         } else {
           setStatus("idle");
+          setPopupDismissed(wasDismissedRecently());
         }
       } catch (err) {
         console.error("서비스 워커 등록 실패:", err);
@@ -121,8 +175,13 @@ export default function PushSubscribeButton() {
     try {
       const registration = await navigator.serviceWorker.ready;
       const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
+      if (permission === "denied") {
         setStatus("denied");
+        return;
+      }
+      if (permission !== "granted") {
+        // 브라우저 팝업에서 허용/차단 중 아무것도 선택하지 않고 닫은 경우입니다.
+        setStatus("not-decided");
         return;
       }
 
@@ -178,15 +237,27 @@ export default function PushSubscribeButton() {
 
   if (status === "denied") {
     return (
-      <p className="text-xs text-gray-400">
-        알림이 차단되어 있어요. 브라우저 사이트 설정에서 알림 권한을 허용해주세요.
+      <p className="max-w-xs text-xs text-gray-400">
+        🔕 알림이 차단되어 있어요. {getBrowserSettingsHint()}
+      </p>
+    );
+  }
+
+  if (status === "not-decided") {
+    return (
+      <p className="max-w-xs text-xs text-gray-400">
+        아직 알림 허용 여부를 선택하지 않으셨어요. 아래 버튼을 다시 누르면 브라우저가 다시 물어보는데, 그때{" "}
+        <strong className="text-gray-600">“허용”</strong>을 눌러주세요.{" "}
+        <button type="button" onClick={handleSubscribe} className="font-medium text-blue-600 underline">
+          다시 시도
+        </button>
       </p>
     );
   }
 
   // 아직 알림을 허용도, 차단도 하지 않은 상태(idle)입니다. 놓치기 쉬운 작은
   // 버튼 대신, 방문할 때마다 화면 가운데에 큰 팝업으로 알림 허용을 권합니다.
-  // "다음에"를 눌러도 다음 방문 때 다시 뜨고, 실제로 허용하면 더는 뜨지 않습니다.
+  // "다음에"를 누르면 7일간 다시 뜨지 않고, 실제로 허용하면 더는 뜨지 않습니다.
   if (popupDismissed) {
     return (
       <button
@@ -210,11 +281,18 @@ export default function PushSubscribeButton() {
         <p className="mt-1.5 text-sm text-gray-500">
           우리 반 프로젝트에 새 글이 올라올 때마다 바로 알려드려요.
         </p>
+        <p className="mt-2 text-xs text-blue-600">
+          ℹ️ &quot;알림 받기&quot;를 누르면 브라우저가 별도로 알림 허용 여부를 물어봐요. 그때 꼭{" "}
+          <strong>“허용”</strong>을 눌러주셔야 알림이 켜집니다.
+        </p>
         {errorMsg && <p className="mt-2 text-xs text-red-500">{errorMsg}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
-            onClick={() => setPopupDismissed(true)}
+            onClick={() => {
+              rememberDismissed();
+              setPopupDismissed(true);
+            }}
             className="rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100"
           >
             다음에
