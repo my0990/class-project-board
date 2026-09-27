@@ -238,78 +238,38 @@ export async function moveStage(password: string, stageId: string, direction: "u
 }
 
 // ------------------------------------------------------------------
-// 참고 자료 링크 (홈 화면에 모아서 보여주는 구글문서/캔바/패들렛 등)
+// 참고 자료 링크 (UOI 전체 문서 / LOI 캔바·패들렛 자료 - 홈 화면에 보여줌)
 // ------------------------------------------------------------------
 
-export async function createResourceLink(password: string, label: string, url: string): Promise<Result> {
+export async function setUoiDocUrl(password: string, uoiId: string, url: string): Promise<Result> {
   const err = await adminError(password);
   if (err) return { error: err };
-  if (!label.trim()) return { error: "자료 이름을 입력해주세요." };
-  if (!url.trim()) return { error: "자료 주소(URL)를 입력해주세요." };
 
-  const last = await prisma.resourceLink.findFirst({ orderBy: { order: "desc" } });
-  await prisma.resourceLink.create({
-    data: { label: label.trim(), url: url.trim(), order: (last?.order ?? 0) + 1 },
+  await prisma.uoi.update({
+    where: { id: uoiId },
+    data: { docUrl: url.trim() ? url.trim() : null },
   });
 
   refresh();
   return { success: true };
 }
 
-export async function updateResourceLink(
+export async function setLoiResourceLinks(
   password: string,
-  resourceLinkId: string,
-  label: string,
-  url: string
+  loiId: string,
+  canvaUrl: string,
+  padletUrl: string
 ): Promise<Result> {
   const err = await adminError(password);
   if (err) return { error: err };
-  if (!label.trim()) return { error: "자료 이름을 입력해주세요." };
-  if (!url.trim()) return { error: "자료 주소(URL)를 입력해주세요." };
 
-  await prisma.resourceLink.update({
-    where: { id: resourceLinkId },
-    data: { label: label.trim(), url: url.trim() },
+  await prisma.loi.update({
+    where: { id: loiId },
+    data: {
+      canvaUrl: canvaUrl.trim() ? canvaUrl.trim() : null,
+      padletUrl: padletUrl.trim() ? padletUrl.trim() : null,
+    },
   });
-
-  refresh();
-  return { success: true };
-}
-
-export async function deleteResourceLink(password: string, resourceLinkId: string): Promise<Result> {
-  const err = await adminError(password);
-  if (err) return { error: err };
-
-  await prisma.resourceLink.delete({ where: { id: resourceLinkId } });
-
-  refresh();
-  return { success: true };
-}
-
-export async function moveResourceLink(
-  password: string,
-  resourceLinkId: string,
-  direction: "up" | "down"
-): Promise<Result> {
-  const err = await adminError(password);
-  if (err) return { error: err };
-
-  const links = await prisma.resourceLink.findMany({ orderBy: { order: "asc" } });
-  const idx = links.findIndex((l) => l.id === resourceLinkId);
-  if (idx === -1) return { error: "자료를 찾을 수 없습니다." };
-
-  const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-  if (swapIdx < 0 || swapIdx >= links.length) {
-    return { success: true }; // 이미 맨 위/아래
-  }
-
-  const a = links[idx];
-  const b = links[swapIdx];
-  await prisma.$transaction([
-    prisma.resourceLink.update({ where: { id: a.id }, data: { order: -1 } }),
-    prisma.resourceLink.update({ where: { id: b.id }, data: { order: a.order } }),
-    prisma.resourceLink.update({ where: { id: a.id }, data: { order: b.order } }),
-  ]);
 
   refresh();
   return { success: true };

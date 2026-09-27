@@ -34,6 +34,8 @@ model Uoi {
   order     Int      @unique
   name      String
   createdAt DateTime @default(now())
+  // 홈 화면에 보여줄 이 UOI 전체 문서(구글 문서 등) 링크. 없으면 null.
+  docUrl    String?
 
   lois Loi[]
 }
@@ -46,6 +48,10 @@ model Loi {
   order     Int
   name      String
   createdAt DateTime @default(now())
+  // 홈 화면에 보여줄 이 LOI의 캔바 자료 링크. 없으면 null.
+  canvaUrl  String?
+  // 홈 화면에 보여줄 이 LOI의 패들렛 자료 링크. 없으면 null.
+  padletUrl String?
 
   stages Stage[]
 
@@ -102,16 +108,6 @@ model Attachment {
   url       String
   type      String // "image" | "video"
   order     Int      @default(0)
-  createdAt DateTime @default(now())
-}
-
-// 홈 화면에 모아서 보여주는 참고 자료 링크 (구글문서/캔바/패들렛 등).
-// 모든 반이 공통으로 보는, 전체 학급 공통 자료입니다.
-model ResourceLink {
-  id        String   @id @default(cuid())
-  label     String
-  url       String
-  order     Int      @unique
   createdAt DateTime @default(now())
 }
 

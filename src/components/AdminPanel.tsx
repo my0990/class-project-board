@@ -4,15 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createLoi,
-  createResourceLink,
   createStage,
   createUoi,
   deleteLoi,
-  deleteResourceLink,
   deleteStage,
   deleteUoi,
   moveLoi,
-  moveResourceLink,
   moveStage,
   moveUoi,
   renameLoi,
@@ -20,15 +17,22 @@ import {
   renameUoi,
   setClassPushNotifyEnabled,
   setDeployNotifyEnabled,
+  setLoiResourceLinks,
+  setUoiDocUrl,
   updateProjectTitle,
-  updateResourceLink,
 } from "@/app/admin/actions";
 
 type Stage = { id: string; name: string; order: number };
-type Loi = { id: string; name: string; order: number; stages: Stage[] };
-type Uoi = { id: string; name: string; order: number; lois: Loi[] };
+type Loi = {
+  id: string;
+  name: string;
+  order: number;
+  stages: Stage[];
+  canvaUrl: string | null;
+  padletUrl: string | null;
+};
+type Uoi = { id: string; name: string; order: number; lois: Loi[]; docUrl: string | null };
 type ClassNotifySetting = { id: string; name: string; pushNotifyEnabled: boolean };
-type ResourceLink = { id: string; label: string; url: string; order: number };
 
 type ActionResult = { success: true } | { error: string };
 
@@ -37,25 +41,19 @@ export default function AdminPanel({
   initialUois,
   initialDeployNotifyEnabled,
   initialClassRooms,
-  initialResourceLinks,
 }: {
   initialTitle: string;
   initialUois: Uoi[];
   initialDeployNotifyEnabled: boolean;
   initialClassRooms: ClassNotifySetting[];
-  initialResourceLinks: ResourceLink[];
 }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [title, setTitle] = useState(initialTitle);
   const [deployNotifyEnabled, setDeployNotifyEnabledState] = useState(initialDeployNotifyEnabled);
   const [classRooms, setClassRooms] = useState(initialClassRooms);
-  // 목록 자체는 항상 최신 서버 데이터(props)를 그대로 씁니다 - 추가/수정/삭제/순서변경 후
-  // router.refresh()로 다시 내려오는 initialResourceLinks가 곧바로 반영되도록 하기 위해서입니다.
-  const resourceLinks = initialResourceLinks;
-  const [resourceLinkEdits, setResourceLinkEdits] = useState<Record<string, { label: string; url: string }>>({});
-  const [newResourceLabel, setNewResourceLabel] = useState("");
-  const [newResourceUrl, setNewResourceUrl] = useState("");
+  const [uoiDocUrlEdits, setUoiDocUrlEdits] = useState<Record<string, string>>({});
+  const [loiLinkEdits, setLoiLinkEdits] = useState<Record<string, { canvaUrl: string; padletUrl: string }>>({});
 
   const [uoiRenaming, setUoiRenaming] = useState<Record<string, string>>({});
   const [loiRenaming, setLoiRenaming] = useState<Record<string, string>>({});
@@ -227,128 +225,11 @@ export default function AdminPanel({
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="font-semibold">참고 자료 링크</h2>
-        <p className="mt-1 text-xs text-gray-400">
-          홈 화면의 &quot;참고 자료&quot; 접기/펼치기 영역에 버튼으로 모아서 보여줍니다. 구글문서, 캔바, 패들렛 등
-          어떤 주소든 넣을 수 있어요.
-        </p>
-
-        <ul className="mt-3 space-y-2">
-          {resourceLinks.map((link, i) => {
-            const edit = resourceLinkEdits[link.id] ?? { label: link.label, url: link.url };
-            return (
-              <li key={link.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-100 p-2.5">
-                <input
-                  value={edit.label}
-                  onChange={(e) =>
-                    setResourceLinkEdits((r) => ({ ...r, [link.id]: { ...edit, label: e.target.value } }))
-                  }
-                  placeholder="이름 (예: UOI1 LOI1 캔바)"
-                  className="min-w-[8rem] flex-1 rounded-lg border border-gray-300 p-2 text-sm focus:border-blue-500 focus:outline-none"
-                />
-                <input
-                  value={edit.url}
-                  onChange={(e) =>
-                    setResourceLinkEdits((r) => ({ ...r, [link.id]: { ...edit, url: e.target.value } }))
-                  }
-                  placeholder="주소 (https://...)"
-                  className="min-w-[10rem] flex-[2] rounded-lg border border-gray-300 p-2 text-sm focus:border-blue-500 focus:outline-none"
-                />
-                <div className="flex flex-none flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    title="위로 이동"
-                    disabled={busy || i === 0}
-                    onClick={() => {
-                      if (needPassword()) return;
-                      run(() => moveResourceLink(password, link.id, "up"));
-                    }}
-                    className="flex h-8 min-w-[2rem] items-center justify-center rounded-md border border-gray-200 px-2 text-sm disabled:opacity-30"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    title="아래로 이동"
-                    disabled={busy || i === resourceLinks.length - 1}
-                    onClick={() => {
-                      if (needPassword()) return;
-                      run(() => moveResourceLink(password, link.id, "down"));
-                    }}
-                    className="flex h-8 min-w-[2rem] items-center justify-center rounded-md border border-gray-200 px-2 text-sm disabled:opacity-30"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      if (needPassword()) return;
-                      run(() => updateResourceLink(password, link.id, edit.label, edit.url));
-                    }}
-                    className="flex h-8 items-center justify-center rounded-md border border-gray-200 bg-white px-2.5 text-xs hover:border-blue-400"
-                  >
-                    저장
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      if (needPassword()) return;
-                      if (!confirm(`"${link.label}" 자료를 삭제할까요?`)) return;
-                      run(() => deleteResourceLink(password, link.id));
-                    }}
-                    className="flex h-8 items-center justify-center rounded-md border border-red-200 bg-white px-2.5 text-xs text-red-500 hover:bg-red-50"
-                  >
-                    삭제
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-
-        <div className="mt-3 flex flex-wrap gap-2 border-t border-dashed border-gray-200 pt-3">
-          <input
-            value={newResourceLabel}
-            onChange={(e) => setNewResourceLabel(e.target.value)}
-            placeholder="새 자료 이름 (예: UOI3 LOI1 캔바)"
-            className="min-w-[8rem] flex-1 rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
-          />
-          <input
-            value={newResourceUrl}
-            onChange={(e) => setNewResourceUrl(e.target.value)}
-            placeholder="새 자료 주소 (https://...)"
-            className="min-w-[10rem] flex-[2] rounded-lg border border-gray-300 p-2.5 text-sm focus:border-blue-500 focus:outline-none"
-          />
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              if (needPassword()) return;
-              if (!newResourceLabel.trim() || !newResourceUrl.trim()) {
-                setMessage({ type: "error", text: "자료 이름과 주소를 모두 입력해주세요." });
-                return;
-              }
-              run(
-                () => createResourceLink(password, newResourceLabel, newResourceUrl),
-                () => {
-                  setNewResourceLabel("");
-                  setNewResourceUrl("");
-                }
-              );
-            }}
-            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
-          >
-            자료 추가
-          </button>
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-gray-200 bg-white p-5">
         <h2 className="font-semibold">탐구 단원(UOI) · 탐구 주제(LOI) · 수업 단계</h2>
         <p className="mt-1 text-xs text-gray-400">
-          전체 학급이 공통으로 사용하는 구조입니다. UOI 안에 여러 LOI, LOI 안에 여러 단계를 둘 수 있어요.
+          전체 학급이 공통으로 사용하는 구조입니다. UOI 안에 여러 LOI, LOI 안에 여러 단계를 둘 수 있어요. UOI
+          전체 문서, LOI의 캔바·패들렛 자료 주소도 여기서 등록하면 홈 화면 &quot;참고 자료&quot;에 자동으로
+          나타납니다.
         </p>
 
         <div className="mt-4 space-y-5">
@@ -415,6 +296,28 @@ export default function AdminPanel({
                 </div>
               </div>
 
+              {/* UOI 전체 문서 링크 */}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="flex-none text-xs font-medium text-gray-500">📄 문서 링크</span>
+                <input
+                  value={uoiDocUrlEdits[uoi.id] ?? uoi.docUrl ?? ""}
+                  onChange={(e) => setUoiDocUrlEdits((r) => ({ ...r, [uoi.id]: e.target.value }))}
+                  placeholder="구글 문서 등 주소 (https://...)"
+                  className="min-w-[10rem] flex-1 rounded-lg border border-gray-300 bg-white p-2 text-sm focus:border-blue-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    if (needPassword()) return;
+                    run(() => setUoiDocUrl(password, uoi.id, uoiDocUrlEdits[uoi.id] ?? uoi.docUrl ?? ""));
+                  }}
+                  className="flex h-8 flex-none items-center justify-center rounded-md border border-gray-200 bg-white px-2.5 text-xs hover:border-blue-400"
+                >
+                  저장
+                </button>
+              </div>
+
               {/* LOI 목록 */}
               <div className="mt-3 space-y-3 border-l-2 border-blue-200 pl-3 sm:pl-4">
                 {uoi.lois.map((loi, li) => (
@@ -477,6 +380,55 @@ export default function AdminPanel({
                           삭제
                         </button>
                       </div>
+                    </div>
+
+                    {/* LOI 자료 링크 (캔바 / 패들렛) */}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="flex-none text-xs font-medium text-gray-500">🎨 캔바</span>
+                      <input
+                        value={loiLinkEdits[loi.id]?.canvaUrl ?? loi.canvaUrl ?? ""}
+                        onChange={(e) =>
+                          setLoiLinkEdits((r) => ({
+                            ...r,
+                            [loi.id]: {
+                              canvaUrl: e.target.value,
+                              padletUrl: r[loi.id]?.padletUrl ?? loi.padletUrl ?? "",
+                            },
+                          }))
+                        }
+                        placeholder="캔바 주소 (https://...)"
+                        className="min-w-[8rem] flex-1 rounded-lg border border-gray-300 p-2 text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                      <span className="flex-none text-xs font-medium text-gray-500">📌 패들렛</span>
+                      <input
+                        value={loiLinkEdits[loi.id]?.padletUrl ?? loi.padletUrl ?? ""}
+                        onChange={(e) =>
+                          setLoiLinkEdits((r) => ({
+                            ...r,
+                            [loi.id]: {
+                              canvaUrl: r[loi.id]?.canvaUrl ?? loi.canvaUrl ?? "",
+                              padletUrl: e.target.value,
+                            },
+                          }))
+                        }
+                        placeholder="패들렛 주소 (https://...)"
+                        className="min-w-[8rem] flex-1 rounded-lg border border-gray-300 p-2 text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          if (needPassword()) return;
+                          const edit = loiLinkEdits[loi.id] ?? {
+                            canvaUrl: loi.canvaUrl ?? "",
+                            padletUrl: loi.padletUrl ?? "",
+                          };
+                          run(() => setLoiResourceLinks(password, loi.id, edit.canvaUrl, edit.padletUrl));
+                        }}
+                        className="flex h-8 flex-none items-center justify-center rounded-md border border-gray-200 bg-white px-2.5 text-xs hover:border-blue-400"
+                      >
+                        저장
+                      </button>
                     </div>
 
                     {/* Stage 목록 */}

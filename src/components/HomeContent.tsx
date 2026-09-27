@@ -9,7 +9,7 @@ import ResourceLinksSection from "@/components/ResourceLinksSection";
 export default async function HomeContent() {
   const config = await getConfig();
 
-  const [uois, classes, posts, resourceLinks] = await Promise.all([
+  const [uois, classes, posts] = await Promise.all([
     prisma.uoi.findMany({
       orderBy: { order: "asc" },
       include: {
@@ -21,7 +21,6 @@ export default async function HomeContent() {
     }),
     prisma.classRoom.findMany({ orderBy: { slug: "asc" } }),
     prisma.post.findMany({ select: { classRoomId: true, stageId: true } }),
-    prisma.resourceLink.findMany({ orderBy: { order: "asc" } }),
   ]);
 
   const doneSet = new Set(posts.map((p) => `${p.classRoomId}:${p.stageId}`));
@@ -64,7 +63,7 @@ export default async function HomeContent() {
         </ol>
       )}
 
-      <ResourceLinksSection links={resourceLinks} />
+      <ResourceLinksSection uois={uois} />
 
       {classes.length === 0 ? (
         <p className="mt-10 text-gray-400">

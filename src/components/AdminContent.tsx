@@ -4,7 +4,7 @@ import AdminPanel from "@/components/AdminPanel";
 
 // 관리자 페이지에서 실제 DB 조회가 필요한 부분만 따로 분리한 컴포넌트입니다.
 export default async function AdminContent() {
-  const [config, uois, classRooms, resourceLinks] = await Promise.all([
+  const [config, uois, classRooms] = await Promise.all([
     getConfig(),
     prisma.uoi.findMany({
       orderBy: { order: "asc" },
@@ -21,7 +21,6 @@ export default async function AdminContent() {
       orderBy: { name: "asc" },
       select: { id: true, name: true, pushNotifyEnabled: true },
     }),
-    prisma.resourceLink.findMany({ orderBy: { order: "asc" } }),
   ]);
 
   return (
@@ -30,7 +29,6 @@ export default async function AdminContent() {
       initialUois={uois}
       initialDeployNotifyEnabled={config.deployNotifyEnabled}
       initialClassRooms={classRooms}
-      initialResourceLinks={resourceLinks}
     />
   );
 }
