@@ -143,8 +143,8 @@ export default function NewPostForm({
             processed = await compressImage(item.file);
           }
 
-          updateFileStatus(i, { status: "업로드 중" });
-          const { url } = await uploadFileToR2(processed);
+          updateFileStatus(i, { status: "업로드 중", progress: 0 });
+          const { url } = await uploadFileToR2(processed, (ratio) => updateFileStatus(i, { progress: ratio }));
 
           const uploaded: { url: string; type: "image" | "video" } = { url, type: item.isVideo ? "video" : "image" };
           uploadedNow.push(uploaded);
@@ -252,8 +252,8 @@ export default function NewPostForm({
                   <img src={item.preview} alt="" className="h-20 w-full object-cover" />
                 )}
                 <div className="absolute inset-x-0 bottom-0 bg-black/60 px-1 py-0.5 text-center text-[10px] leading-tight text-white">
-                  {item.status === "압축 중" && item.isVideo
-                    ? `압축 중 ${Math.round(item.progress * 100)}%`
+                  {(item.status === "압축 중" && item.isVideo) || item.status === "업로드 중"
+                    ? `${item.status} ${Math.round(item.progress * 100)}%`
                     : item.status}
                 </div>
                 {!submitting && (

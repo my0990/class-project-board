@@ -5,9 +5,24 @@
 // 아주 짧은 순간의 통신 끊김만으로도 fetch가 "Failed to fetch"를 던지며
 // 완전히 실패해버릴 수 있습니다. 이런 일시적인 오류는 서버/설정 문제가
 // 아니라 네트워크 자체의 흔들림이므로, 짧은 대기 후 자동으로 재시도합니다.
+//
+// 또한 일부 학교/기관 와이파이는 방화벽/콘텐츠 필터가 낯선 클라우드 저장소
+// 도메인(R2)로 가는 연결을 거부 응답 없이 그냥 묵묵히 막아버리는 경우가 있어,
+// 연결이 "느린 것"이 아니라 "완전히 멈춘 것"처럼 아무 반응 없이 계속 대기하게
+// 됩니다. 이를 구분하기 위해 업로드 진행률(progress)을 직접 감시하다가, 일정
+// 시간 동안 1바이트도 더 전송되지 않으면(=멈춘 것으로 판단) 그 즉시 실패
+// 처리하고, 실제로 느리지만 꾸준히 전송 중이면(progress가 계속 움직이면)
+// 끝까지 기다립니다.
 
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = [800, 2000]; // 2번째, 3번째 시도 전 대기 시간
+
+// 업로드 진행률이 이 시간(ms) 동안 전혀 움직이지 않으면 "연결이 막혔다"고
+// 판단해서 바로 실패 처리합니다 (학교 와이파이의 방화벽 차단 등).
+const UPLOAD_STALL_TIMEOUT_MS = 20_000;
+// 느리지만 꾸준히 전송 중이어도, 한 번의 시도가 이 시간(ms)을 넘기면
+// 안전장치로 중단합니다.
+const UPLOAD_MAX_DURATION_MS = 5 * 60_000;
 
 class UploadError extends Error {
   retryable: boolean;
@@ -40,6 +55,88 @@ async function fetchWithTimeout(input: string, init: RequestInit, timeoutMs: num
   }
 }
 
+// fetch는 업로드 진행 상황(progress)을 알려주지 않아서 "멈춘 것"과 "느린 것"을
+// 구분할 수 없습니다. XMLHttpRequest는 progress 이벤트를 주기 때문에, 진행률이
+// 움직이는 동안은 계속 기다리고, 일정 시간 전혀 움직이지 않으면(=연결이
+// 막힌 것으로 추정) 바로 실패 처리할 수 있습니다.
+function putWithProgress(
+  url: string,
+  blob: Blob,
+  contentType: string,
+  onProgress?: (ratio: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let settled = false;
+    let stallTimer: ReturnType<typeof setTimeout>;
+    const maxTimer = setTimeout(() => finish(() => {
+      throw new UploadError("업로드가 너무 오래 걸려서 중단했어요. 네트워크 상태를 확인하고 다시 시도해주세요.");
+    }), UPLOAD_MAX_DURATION_MS);
+
+    function cleanup() {
+      clearTimeout(stallTimer);
+      clearTimeout(maxTimer);
+    }
+
+    function finish(buildError: () => never) {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      xhr.abort();
+      try {
+        buildError();
+      } catch (err) {
+        reject(err);
+      }
+    }
+
+    function resetStallTimer() {
+      clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => {
+        finish(() => {
+          throw new UploadError(
+            "업로드 연결이 멈춰 있어요. 학교/기관 와이파이가 파일 저장소 접속을 막고 있을 수 있어요 — 데이터(LTE/5G)로 전환해서 다시 시도해보세요."
+          );
+        });
+      }, UPLOAD_STALL_TIMEOUT_MS);
+    }
+
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", contentType);
+
+    xhr.upload.onloadstart = resetStallTimer;
+    xhr.upload.onprogress = (e) => {
+      resetStallTimer();
+      if (e.lengthComputable) onProgress?.(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        const bodyText = xhr.responseText || "";
+        reject(
+          new UploadError(
+            `파일 업로드에 실패했습니다. (HTTP ${xhr.status}${bodyText ? `: ${bodyText.slice(0, 200)}` : ""})`,
+            xhr.status >= 500
+          )
+        );
+      }
+    };
+    xhr.onerror = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new UploadError(`네트워크 오류로 업로드에 실패했습니다. (${describeRawError(new Error("XHR error"))})`));
+    };
+
+    resetStallTimer(); // 전송 시작(onloadstart) 전, 연결 자체가 막히는 경우까지 대비한 초기 타이머입니다.
+    xhr.send(blob);
+  });
+}
+
 async function withRetry<T>(task: () => Promise<T>, friendlyMessage: string): Promise<T> {
   let lastErr: unknown;
 
@@ -60,9 +157,8 @@ async function withRetry<T>(task: () => Promise<T>, friendlyMessage: string): Pr
   }
 
   // 서버가 명확한 이유로 거부한 경우(예: 지원하지 않는 파일 형식)는 그 메시지를 그대로 보여주고,
-  // 그 외의 오류는 "네트워크가 불안정한 것 같아요" 안내 + 브라우저가 실제로 던진 원본 에러를
-  // 괄호 안에 그대로 남겨서, 진짜 원인을 화면에서 바로 확인할 수 있게 합니다.
-  if (lastErr instanceof UploadError && !lastErr.retryable) throw lastErr;
+  // 그 외의 오류는 원본 메시지(연결 멈춤/타임아웃 등 구체적인 안내가 이미 담겨 있음)를 그대로 보여줍니다.
+  if (lastErr instanceof UploadError) throw lastErr;
   throw new UploadError(
     `${friendlyMessage} 네트워크가 불안정한 것 같아요. 잠시 후 다시 시도해주세요. (${describeRawError(lastErr)})`
   );
@@ -89,7 +185,7 @@ function guessContentType(file: File): string {
   return map[ext] ?? "application/octet-stream";
 }
 
-export async function uploadFileToR2(file: File): Promise<{ url: string }> {
+export async function uploadFileToR2(file: File, onProgress?: (ratio: number) => void): Promise<{ url: string }> {
   const contentType = guessContentType(file);
 
   // 크롬(특히 안드로이드)에서는 File 객체를 그대로 fetch의 body로 넘기면, 실제 전송
@@ -120,25 +216,9 @@ export async function uploadFileToR2(file: File): Promise<{ url: string }> {
   }, "업로드 준비 중 오류가 발생했습니다.");
 
   await withRetry(async () => {
-    const putRes = await fetchWithTimeout(
-      uploadUrl,
-      {
-        method: "PUT",
-        headers: { "Content-Type": contentType },
-        body: uploadBlob,
-      },
-      120_000 // 느린 회선에서 큰 동영상을 올릴 때도 끝까지 전송될 시간을 넉넉히 둡니다.
-    );
-
-    if (!putRes.ok) {
-      // R2가 실제로 응답은 했지만 거부한 경우(서명 오류, 권한 문제 등) 그 내용을
-      // 최대한 그대로 보여줘서 "네트워크 문제"와 구분되게 합니다.
-      const bodyText = await putRes.text().catch(() => "");
-      throw new UploadError(
-        `파일 업로드에 실패했습니다. (HTTP ${putRes.status}${bodyText ? `: ${bodyText.slice(0, 200)}` : ""})`,
-        putRes.status >= 500
-      );
-    }
+    onProgress?.(0);
+    await putWithProgress(uploadUrl, uploadBlob, contentType, onProgress);
+    onProgress?.(1);
   }, "파일 업로드에 실패했습니다.");
 
   return { url: publicUrl };
